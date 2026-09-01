@@ -1,0 +1,62 @@
+{
+    "version": 1,
+    "ads": [
+        {
+            "id": "category-001",
+            "placement": "category_masonry",
+            "imageUrl": "https://www.bowumi.com/wp-content/uploads/tupianbd/0/253/2680245653/3072569244.jpg",
+            "targetUrl": "https://example.com/activity/1",
+            "accessibilityLabel": "热门小说推荐"
+        },
+        {
+            "id": "category-002",
+            "placement": "category_masonry",
+            "imageUrl": "https://www.bowumi.com/wp-content/uploads/tupianbd/2/253/3968619070/591924046.jpg",
+            "targetUrl": "https://example.com/activity/2",
+            "accessibilityLabel": "限时免费阅读"
+        },
+        {
+            "id": "detail-001",
+            "placement": "detail_card",
+            "imageUrl": "https://www.bowumi.com/wp-content/uploads/tupianbd/2/253/1205803863/1877156167.jpg",
+            "targetUrl": "https://example.com/activity/3",
+            "title": "热门作品限时畅读",
+            "description": "精选优质内容，每周持续更新",
+            "buttonText": "查看详情"
+        },
+        {
+            "id": "detail-002",
+            "placement": "detail_card",
+            "imageUrl": "https://www.bowumi.com/wp-content/uploads/tupianbd/2/253/1205803863/1877156167.jpg",
+            "targetUrl": "https://example.com/activity/3",
+            "title": "热门作品限时畅读",
+            "description": "精选优质内容，每周持续更新"
+        },
+        {
+            "id": "reader-001",
+            "placement": "reader_chapter_end",
+            "imageUrl": "https://cdn.pixabay.com/photo/2026/02/20/12/38/pen_ash-snow-10134653_1280.jpg",
+            "targetUrl": "https://example.com/activity/4",
+            "title": "下一部值得阅读的作品",
+            "description": "全新世界观与精彩剧情，立即查看完整内容",
+            "buttonText": "查看详情"
+        },
+        {
+            "id": "reader-002",
+            "placement": "reader_chapter_end",
+            "imageUrl": "https://images.unsplash.com/photo-1580757468214-c73f7062a5cb?w=1000&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8MTYlM0E5fGVufDB8fDB8fHww",
+            "targetUrl": "https://example.com/activity/4",
+            "title": "下一部值得阅读的作品",
+            "description": "全新世界观与精彩剧情，立即查看完整内容"
+        },
+        {
+            "id": "video-001",
+            "placement": "video_preroll",
+            "videoUrl": "https://cdn.pixabay.com/video/2025/04/09/270941_large.mp4",
+            "targetUrl": "https://example.com/activity/4",
+            "title": "精彩内容推荐",
+            "buttonText": "了解详情",
+            "openMode": "external"
+        }
+    ]
+}
