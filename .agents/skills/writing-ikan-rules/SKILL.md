@@ -1,0 +1,103 @@
+---
+name: writing-ikan-rules
+description: Use when creating, updating, reviewing, or debugging ordinary JSON source rules for the Ikan app, including novel, manga, video, search, discover, chapter, content, request, selector, JavaScript, image-transform, or author-ad fields. Do not use for ikan:// subscription encoding.
+---
+
+# Writing Ikan Rules
+
+Create one ordinary JSON rule object for the current Ikan engine. Never encode it as `ikan://` or wrap it in a subscription array.
+
+## Workflow
+
+1. Establish the target URL, content type, stages, author, and optional advertising URL. If responses are unavailable, request representative HTML/JSON; never invent selectors or endpoints.
+2. Read only the repository references relevant to the task:
+   - Start with [`rules/README.md`](../../../rules/README.md) and [`rules/01-fields.md`](../../../rules/01-fields.md).
+   - For requests, selectors, or JavaScript, read [`02-address-and-request.md`](../../../rules/02-address-and-request.md), [`03-selectors-and-values.md`](../../../rules/03-selectors-and-values.md), or [`04-javascript.md`](../../../rules/04-javascript.md).
+   - Read pagination, images, examples, or troubleshooting references only when those features apply. For combined discover filters, read [`05-pagination-and-session.md`](../../../rules/05-pagination-and-session.md) before drafting `discoverUrl`.
+3. For client-rendered or hash-route pages, inspect page scripts and network requests before choosing a fetch mode. Use an accessible underlying HTTP/JSON API when available, including reproducing required signing or encryption with `@js:`/`loadJs`. Use `webview` only when browser state, login, verification, or an unusable API makes direct HTTP impractical; then verify the captured HTML contains the target nodes after asynchronous rendering.
+4. Map the flow: search/discover result → directory request → chapter result/payload → content. In the directory response, check whether chapters are partitioned into independent source, route, quality, or play-line containers before deciding `enableMultiRoads`.
+5. Draft the smallest rule that supports the requested stages. Set unused search or discover stages explicitly to `false`.
+6. Save or present a JSON object, then run:
+
+   ```bash
+   python3 .agents/skills/writing-ikan-rules/scripts/validate_rule.py path/to/rule.json
+   ```
+
+7. Fix every error. Explain remaining warnings. Deliver the rule with assumptions and a stage test checklist.
+
+## Non-obvious Rules
+
+| Situation | Required form |
+| --- | --- |
+| Ordinary GET template | Use `$keyword` and `$page`, for example `/search?q=$keyword&page=$page`. |
+| POST, body, dynamic headers, or computed URL | Use `@js:` and return a URL or request object. Inside JavaScript use `keyword` and `page` without `$`. |
+| Search/discover value fields | Evaluate relative to the current `*List` item. |
+| Chapter value fields | Evaluate relative to the current `chapterList` item. |
+| Current list node value | When `*List` already selects the target element, use `text`, `href`, `src`, or another field name directly. Use `a@text`/`a@href` only when `a` is a descendant. Leading forms such as `@text` and `@href` are compatibility aliases, not canonical output. |
+| Embedded chapter content | Use `chapterPayload`; otherwise let `contentUrl` use `chapterResult`. |
+| Multi-road chapters | Set `enableMultiRoads: true` only when the directory contains independent road containers. `chapterRoads` selects each container; `chapterRoadName` and `chapterList` run relative to that container, then chapter value fields run relative to each `chapterList` item. |
+| Relative URLs | Prefer engine resolution against the current `baseUrl`/`host`; add JavaScript only when the API requires ID-to-URL construction. |
+| Dynamic page | Inspect scripts/network first. Prefer its usable HTTP/JSON API; treat WebView as the fallback and verify post-render DOM timing. |
+| Combined discover filters | Use `@@DiscoverRule:` with `rules` or `groups`. Its address expression is a restricted template evaluator, not general JavaScript: build the request directly with `host`, `params.join("&")`, `values`, `page`, and an optional simple request object. |
+| Author advertising | `adUrl` is an HTTPS URL returning the documented advertising JSON, not an image URL. |
+| Images needing headers or transforms | Return structured image objects as documented in `rules/06-images-and-transforms.md`. |
+| CSS pseudo-classes | Use the structural pseudo-classes documented in `rules/03-selectors-and-values.md`. Do not assume full browser CSS4 support; the validator rejects unsupported pseudo-classes and pseudo-elements. |
+
+## Output Contract
+
+- Output valid, pretty-printed JSON with no comments or placeholders.
+- Include stable `id`, `name`, `host`, and `contentType`.
+- Keep `searchResult` as the work result and `chapterResult` as the chapter result. Build downstream API URLs in `chapterUrl` or `contentUrl` when IDs must be converted.
+- Static inspection is not proof of success. List app checks for requests, pagination, selectors, URLs, headers, content order, and authentication.
+- For every enabled stage, verify one real `*List` item produces all required value fields; a non-empty list alone does not prove that mapped items survive validation.
+
+### Combined discover contract
+
+When the website allows multiple filter rows to apply together, generate this shape and make each `key` the exact verified query parameter. Preserve bracketed names such as `filter[country]`; do not simplify them to `country`.
+
+```javascript
+@js:
+`${host}/comics?${params.join("&")}&page=${page}`
+@@DiscoverRule:
+{"rules":[...]}
+```
+
+Use `${values.key}` or `${values['filter[key]']}` when a value must occupy a fixed path or an explicitly encoded parameter. A simple `{url, method, headers, body}` request object is also supported. If the address cannot be expressed with these forms, report the engine limitation instead of emitting executable-looking JavaScript.
+
+### Multi-road chapter contract
+
+Use multi-road mode when one directory response contains two or more independent source, route, quality, language, or playback-line containers, each with its own chapter list. Do not enable it merely because the page has decorative tabs, volume headings, or one flat chapter list.
+
+```json
+{
+  "enableMultiRoads": true,
+  "chapterRoads": ".play-lines .line",
+  "chapterRoadName": ".line-title@text",
+  "chapterList": ".episodes a",
+  "chapterName": "text",
+  "chapterResult": "href"
+}
+```
+
+Evaluate fields in this order and scope:
+
+1. `chapterRoads` runs against the complete directory response and returns one node per road.
+2. `chapterRoadName` and `chapterList` run separately against each current road node.
+3. `chapterName`, `chapterResult`, `chapterPayload`, `chapterCover`, and `chapterLock` run against each current chapter node.
+
+When `enableMultiRoads` is `true`, always provide both `chapterRoads` and `chapterRoadName`. When it is `false`, omit or empty those two fields. Verify at least two real roads independently produce a non-empty name and valid chapters; matching the first road alone is insufficient.
+
+## Common Mistakes
+
+- Serializing a request object into a plain string instead of returning it from `@js:`.
+- Using `${keyword}` in an ordinary address or `$keyword` inside JavaScript.
+- Enabling a stage while omitting its URL/list/name/result fields.
+- Treating `adUrl` as an image address.
+- Guessing selectors from a URL without inspecting a response.
+- Writing `@text`/`@href` when the current `*List` item is already the target element; generate `text`/`href` instead.
+- Selecting WebView for a dynamic shell before checking its underlying API or confirming that asynchronous target nodes exist in the captured HTML.
+- Treating the `@@DiscoverRule:` prelude as full JavaScript and constructing queries with declarations, `filter()`, arbitrary `map()`, `push()`, `encodeURIComponent()`, or a custom `query.join()`. These expressions are not executed by the waterfall template evaluator; use `params.join("&")` or direct `values` substitutions.
+- Selecting all chapter links globally while `enableMultiRoads` is true. `chapterList` must be relative to the current `chapterRoads` node so chapters do not leak across roads.
+- Enabling multi-road mode for volume headings or visual tabs that do not own independent chapter lists, or leaving `chapterRoads`/`chapterRoadName` populated while multi-road mode is disabled.
+- Using browser-only selectors such as `:has(...)`, `:hover`, or `::before`; prefer stable classes/attributes or JavaScript when supported structural pseudo-classes are insufficient.
+- Producing an array or `ikan://` value when the user requested an ordinary JSON rule.

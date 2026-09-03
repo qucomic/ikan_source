@@ -1,8 +1,8 @@
 # 爱看
 
-爱看是一款规则驱动的内容聚合与阅读应用，支持小说、漫画、视频等多种内容类型。通过灵活的规则配置，可以完成内容发现、搜索、详情解析、章节获取及正文阅读，无需针对不同内容源单独开发客户端。
+爱看是一款规则驱动的内容聚合与阅读器应用，支持小说、漫画、视频等多种内容类型。通过灵活的规则配置，可以完成内容发现、搜索、详情解析、章节获取及正文阅读，无需针对不同内容源单独开发客户端。
 
-[下载最新版本](https://github.com/qucomic/ikan_source/releases/latest) · [规则手册](rules/README.md) · [规则示例](#规则示例)
+[下载最新版本](https://github.com/qucomic/ikan_source/releases/latest) · [规则手册](rules/README.md) · [规则示例](#规则示例) · [Agent Skill](#使用-ai-智能体辅助编写规则)
 
 ## 下载 APK
 
@@ -84,6 +84,44 @@
 7. [图片请求、AES 解密与命名 JS](rules/06-images-and-transforms.md)
 8. [完整规则示例](rules/07-examples.md)
 9. [常见错误与排查](rules/08-troubleshooting.md)
+
+## 使用 AI 智能体辅助编写规则
+
+本仓库内置通用的 [`writing-ikan-rules` Agent Skill](.agents/skills/writing-ikan-rules/SKILL.md)，可供 Codex 及其他支持 Agent Skills 的智能体辅助编写、检查和调试爱看 JSON 规则。
+
+Skill 位于：
+
+```text
+.agents/skills/writing-ikan-rules/
+```
+
+支持 `.agents/skills/` 的智能体可以自动发现该 Skill。若当前智能体不能自动发现，可以要求它先读取：
+
+```text
+.agents/skills/writing-ikan-rules/SKILL.md
+```
+
+不同智能体的 Skill 安装目录和自动发现方式可能不同，请以对应工具的说明为准。即使不支持自动发现，也可以让智能体直接读取 `SKILL.md` 并遵循其中的规则。
+
+### 提示词示例
+
+```text
+请先读取并遵循
+.agents/skills/writing-ikan-rules/SKILL.md，
+为 https://example.com 编写一条完整的漫画规则。
+
+规则作者填写“测试”，需要支持搜索、组合分类、多线路目录和漫画阅读。
+请先检查网站的真实 API；只有无法直接使用 API 时才使用 WebView。
+完成后验证搜索、分类、目录、正文、分页和图片请求头。
+```
+
+生成规则后，可以运行验证器：
+
+```bash
+python3 .agents/skills/writing-ikan-rules/scripts/validate_rule.py rules/example.json
+```
+
+验证器用于检查字段、选择器和已知的不兼容写法。验证通过不代表目标网站一定可用，还需要在爱看 App 中实际测试搜索、分类、目录、正文、分页和图片加载。
 
 ## 使用声明
 

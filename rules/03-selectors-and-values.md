@@ -38,6 +38,60 @@ CSS 节点内可以使用相对子选择器：
 .title>a@href 作为 searchResult
 ```
 
+### 当前列表节点本身取值
+
+`searchName`、`discoverName`、`chapterName` 等字段相对当前列表节点执行。
+写法取决于列表选择器是否已经选中了目标元素。
+
+列表节点是外层容器时，需要继续选择内部元素：
+
+```json
+{
+  "chapterList": "#chapters li",
+  "chapterName": "a@text",
+  "chapterResult": "a@href"
+}
+```
+
+列表节点已经是目标 `<a>` 时，直接读取当前节点：
+
+```json
+{
+  "chapterList": "#chapters a",
+  "chapterName": "text",
+  "chapterResult": "href"
+}
+```
+
+当前引擎兼容 `@text`、`@html`、`@outerHtml`、`@href` 等前导 `@` 写法，
+但新规则统一使用不带前导 `@` 的 `text`、`html`、`outerHtml`、`href`。
+前导 `@` 主要用于完整选择器中的取值后缀，例如 `a@text`。
+
+### 结构伪类
+
+规则引擎支持浏览器中最常用的结构伪类：
+
+- 子节点位置：`:first-child`、`:last-child`、`:only-child`、`:nth-child(...)`、`:nth-last-child(...)`
+- 同类型位置：`:first-of-type`、`:last-of-type`、`:only-of-type`、`:nth-of-type(...)`、`:nth-last-of-type(...)`
+- 简单排除：`:not(...)`
+
+`nth-*` 支持整数、`odd`、`even` 和标准 `An+B` 公式：
+
+```text
+.pager>a:last-of-type@href
+.book:nth-child(even)
+.book:nth-of-type(2n+1)
+.book:nth-last-of-type(-n+3)
+.book:not(.disabled)
+```
+
+位置按元素节点计算，HTML 中的换行和纯文本不会占用序号；`*-of-type`
+只在同一父节点下的同标签元素之间计数。
+
+当前不是完整的浏览器 CSS4 实现。`:has(...)`、`:is(...)`、`:where(...)`、
+`:hover`、`:active`、`:checked` 以及 `::before` 等伪元素不可用于规则选择器。
+遇到这些情况应改用稳定的类名/属性选择器，无法表达时再使用 JavaScript。
+
 ### 旧版 CSS 简写
 
 为导入旧规则保留：

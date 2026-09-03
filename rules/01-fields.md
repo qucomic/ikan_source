@@ -19,7 +19,6 @@
 | `sort` | int | 首次导入时的默认顺序，沿用旧版语义：数值越大越靠前。导入后顺序由用户在规则管理页置顶或拖动调整，重复导入和订阅更新不会覆盖本地顺序。 |
 | `viewStyle` | int | 首次导入时的默认显示样式。用户在应用内调整后，重复导入和订阅更新不会覆盖本地选择。 |
 | `postScript` | String | 备注/兼容元数据；当前不作为主解析流程的后置脚本执行。 |
-| `ruleDialect` | String | `esoLegacy` 或 `ikanModern`；未写时默认 `esoLegacy`。 |
 | `subscriptionId` | String | 规则所属订阅的内部关联值。 |
 | `editProtection` | Object | 规则编辑保护信息，应由应用生成，不建议手写。 |
 

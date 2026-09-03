@@ -1,0 +1,7 @@
+interface:
+  display_name: "编写爱看规则"
+  short_description: "创建、检查和调试爱看普通 JSON 内容规则"
+  default_prompt: "Use $writing-ikan-rules to create an ordinary Ikan JSON rule for this content source."
+
+policy:
+  allow_implicit_invocation: true
