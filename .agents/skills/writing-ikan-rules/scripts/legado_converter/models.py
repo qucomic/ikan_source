@@ -101,6 +101,7 @@ class BatchResult:
     def to_report_dict(self) -> Dict[str, Any]:
         return {
             "summary": self.summary,
+            "networkVerification": "not-run",
             "inputDiagnostics": [item.to_dict() for item in self.input_diagnostics],
             "sources": [item.to_report_dict() for item in self.results],
         }

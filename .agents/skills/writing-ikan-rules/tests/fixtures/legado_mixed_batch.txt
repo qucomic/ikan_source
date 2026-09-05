@@ -1,0 +1,27 @@
+{
+  "bookSourceName": "HTML 小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://html.example",
+  "searchUrl": "/search?q={{key}}&page={{page}}",
+  "ruleSearch": {"bookList": ".book", "name": ".title@text", "bookUrl": ".title@href"},
+  "ruleToc": {"chapterList": ".chapters a", "chapterName": "text", "chapterUrl": "href"},
+  "ruleContent": {"content": "#content@text"}
+},
+{
+  "bookSourceName": "JSON 小说",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://api.example",
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"玄幻\",\"url\":\"/category/1?page={{page}}\"}]",
+  "ruleExplore": {"bookList": "$.books[*]", "name": "$.name", "bookUrl": "$.id"},
+  "ruleToc": {"chapterList": "$.chapters[*]", "chapterName": "$.name", "chapterUrl": "$.id"},
+  "ruleContent": {"content": "$.content"}
+},
+{
+  "bookSourceName": "Android 依赖",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://android.example",
+  "jsLib": "const token='private-secret'; new JavaImporter(); Packages.javax.crypto.Cipher;",
+  "ruleToc": {"chapterList": ".chapters a", "chapterName": "text", "chapterUrl": "href"},
+  "ruleContent": {"content": "<js>Packages.java.lang.String;</js>"}
+},

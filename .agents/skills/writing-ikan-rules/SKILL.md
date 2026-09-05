@@ -25,6 +25,24 @@ Create one ordinary JSON rule object for the current Ikan engine. Never encode i
 
 7. Fix every error. Explain remaining warnings. Deliver the rule with assumptions and a stage test checklist.
 
+## Batch conversion from Legado
+
+For multiple Legado/阅读 source objects, use the offline converter instead of manually rewriting every item:
+
+```bash
+python3 .agents/skills/writing-ikan-rules/scripts/convert_legado_rules.py INPUT --output OUTPUT_DIR
+```
+
+`INPUT` may be one JSON object, a JSON array, a comma-separated object stream without outer brackets, or a directory containing `.json`/`.txt` files. The converter writes one ordinary Ikan JSON object per source plus `conversion-report.json`.
+
+Report statuses mean:
+
+- `converted`: deterministic offline conversion completed and the static Ikan validator found no errors;
+- `partial`: a meaningful reading flow was generated, but one or more requested stages or runtime capabilities need manual work;
+- `unsupported`: no complete chapter-to-content reading flow could be generated.
+
+The converter never executes source JavaScript or performs network requests. `converted` is not proof that a website or API currently works; verify search, every discovery mode, directory, content, pagination, headers, authentication, and encryption against real responses before describing the rule as operational. Use the report's field-level diagnostics to finish `partial` candidates manually with this skill.
+
 ## Non-obvious Rules
 
 | Situation | Required form |
