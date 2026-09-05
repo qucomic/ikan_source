@@ -64,3 +64,43 @@ class ConversionResult:
     def name(self) -> str:
         value = self.source.value.get("bookSourceName")
         return str(value).strip() if value is not None else ""
+
+    def to_report_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "input": self.source.location.label,
+            "output": self.output,
+            "status": self.status,
+            "convertedStages": self.converted_stages,
+            "disabledStages": self.disabled_stages,
+            "diagnostics": [item.to_dict() for item in self.diagnostics],
+            "validation": self.validation.to_dict(),
+        }
+
+
+@dataclass
+class BatchResult:
+    results: List[ConversionResult]
+    input_diagnostics: List[Diagnostic] = field(default_factory=list)
+
+    @property
+    def summary(self) -> Dict[str, int]:
+        summary = {"total": len(self.results), "converted": 0, "partial": 0, "unsupported": 0}
+        for item in self.results:
+            summary[item.status] = summary.get(item.status, 0) + 1
+        return summary
+
+    @property
+    def exit_code(self) -> int:
+        if any(item.status != "converted" for item in self.results):
+            return 2
+        if any(item.severity in {"warning", "error"} for item in self.input_diagnostics):
+            return 2
+        return 0
+
+    def to_report_dict(self) -> Dict[str, Any]:
+        return {
+            "summary": self.summary,
+            "inputDiagnostics": [item.to_dict() for item in self.input_diagnostics],
+            "sources": [item.to_report_dict() for item in self.results],
+        }
