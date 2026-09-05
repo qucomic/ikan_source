@@ -6,7 +6,7 @@ import re
 import unicodedata
 from collections.abc import Mapping
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 from .capability_scanner import redact_excerpt, scan_capabilities
 from .models import ConversionResult, Diagnostic, ParsedSource
@@ -246,6 +246,12 @@ def _convert_selector(
         )
         return None
     if "{{" in source:
+        expressions = [match.group(1).strip() for match in _TEMPLATE.finditer(source)]
+        if expressions and all(
+            expression.startswith(("$", ".", "//", "@css:", "@json:", "@xpath:"))
+            for expression in expressions
+        ):
+            return source
         _issue(
             diagnostics,
             "conversion.selector_unsupported",
@@ -310,6 +316,206 @@ def _map_selector_fields(
             rule[target_key] = converted
 
 
+def _convert_load_js(
+    source: Mapping[str, Any], diagnostics: List[Diagnostic]
+) -> Tuple[str, bool]:
+    raw = source.get("jsLib")
+    if not isinstance(raw, str) or not raw.strip():
+        return "", False
+    unsupported = re.search(
+        r"\b(?:JavaImporter|Packages\.|java\.ajax|source\.|cookie\.|java\.(?:startBrowser|showBrowser|getWebViewUA))",
+        raw,
+    )
+    if unsupported:
+        _issue(
+            diagnostics,
+            "conversion.load_js_unsupported",
+            "$.jsLib",
+            "jsLib 依赖无法离线迁移的 Legado Java/Android API。",
+            raw,
+        )
+        return "", False
+    converted = re.sub(
+        r"\bjava\.md5Encode\(\s*([^()]+?)\s*\)",
+        r"CryptoJS.MD5(\1).toString()",
+        raw,
+    )
+    if re.search(r"\bjava\.", converted):
+        _issue(
+            diagnostics,
+            "conversion.load_js_unsupported",
+            "$.jsLib",
+            "jsLib 仍包含未识别的 java API。",
+            raw,
+        )
+        return "", False
+    return converted.strip(), "CryptoJS" in converted
+
+
+def _extract_sign_key(source: Mapping[str, Any]) -> Optional[str]:
+    pattern = re.compile(r"\bsign_key\s*=\s*['\"]([^'\"]+)['\"]")
+    for text in _walk_strings(source):
+        match = pattern.search(text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _static_headers(source: Mapping[str, Any]) -> Dict[str, str]:
+    value = source.get("header")
+    if not isinstance(value, str):
+        return {}
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(decoded, dict):
+        return {}
+    return {
+        str(key): str(item)
+        for key, item in decoded.items()
+        if isinstance(item, (str, int, float, bool))
+    }
+
+
+def _qimao_api_request_helper(sign_key: str, headers: Mapping[str, str]) -> str:
+    return """function apiRequest(base, path, params) {
+  const signKey = %s;
+  const values = Object.assign({}, params);
+  const canonical = Object.keys(values).sort().map(key => key + '=' + values[key]).join('');
+  values.sign = CryptoJS.MD5(canonical + signKey).toString();
+  const requestHeaders = Object.assign({}, %s);
+  if (Object.keys(requestHeaders).length) {
+    const headerCanonical = Object.keys(requestHeaders).sort().map(key => key + '=' + requestHeaders[key]).join('');
+    requestHeaders.sign = CryptoJS.MD5(headerCanonical + signKey).toString();
+  }
+  const query = Object.keys(values).map(key => encodeURIComponent(key) + '=' + encodeURIComponent(values[key])).join('&');
+  return {url: base + path + '?' + query, headers: requestHeaders};
+}""" % (
+        json.dumps(sign_key, ensure_ascii=False),
+        json.dumps(dict(headers), ensure_ascii=False, separators=(",", ":")),
+    )
+
+
+def _qimao_category_address(
+    value: str, source: Mapping[str, Any]
+) -> Optional[Tuple[str, str]]:
+    if "api-bc.wtzw.com" not in str(source.get("bookSourceUrl", "")):
+        return None
+    parsed = urlparse(value)
+    route = None
+    raw_params = ""
+    if "/category/" in parsed.path:
+        route = "/api/v4/category/get-list"
+        raw_params = parsed.path.split("/category/", 1)[1]
+    elif "/tag/" in parsed.path:
+        route = "/api/v4/tag/index"
+        raw_params = parsed.path.split("/tag/", 1)[1]
+    if route is None:
+        return None
+    if parsed.query:
+        raw_params += ("&" if raw_params else "") + parsed.query
+    params = [(key, item) for key, item in parse_qsl(raw_params) if key != "page"]
+    rendered = ["{}:{}".format(key, json.dumps(item, ensure_ascii=False).replace('"', "'")) for key, item in params]
+    rendered.append("page:${page}")
+    return route, "@js:apiRequest('https://api-bc.wtzw.com', %s, {%s})" % (
+        json.dumps(route).replace('"', "'"),
+        ",".join(rendered),
+    )
+
+
+def _convert_combined_discover(
+    config: Mapping[str, Any], diagnostics: List[Diagnostic]
+) -> Optional[str]:
+    url = config.get("url")
+    rules = config.get("rules")
+    if not isinstance(url, str) or not isinstance(rules, list):
+        return None
+    if not all(
+        isinstance(item, dict)
+        and isinstance(item.get("name"), str)
+        and isinstance(item.get("key"), str)
+        and isinstance(item.get("options"), list)
+        for item in rules
+    ):
+        _issue(
+            diagnostics,
+            "conversion.discover_filter_unsupported",
+            "$.exploreUrl",
+            "组合筛选定义缺少 name/key/options。",
+            config,
+        )
+        return None
+    expression = url
+    expression = re.sub(
+        r"\{\{\s*values\.([A-Za-z_$][\w$]*)\s*\}\}",
+        r"${values.\1}",
+        expression,
+    )
+    expression = expression.replace("{{page}}", "${page}")
+    if "{{" in expression:
+        _issue(
+            diagnostics,
+            "conversion.discover_filter_unsupported",
+            "$.exploreUrl",
+            "组合筛选地址包含未知模板。",
+            url,
+        )
+        return None
+    return "@js:\n`%s`\n@@DiscoverRule:\n%s" % (
+        expression.replace("`", r"\`"),
+        json.dumps({"rules": rules}, ensure_ascii=False, separators=(",", ":")),
+    )
+
+
+def _convert_discover(
+    source: Mapping[str, Any], diagnostics: List[Diagnostic]
+) -> Tuple[Optional[str], str, bool]:
+    raw = source.get("exploreUrl")
+    if not isinstance(raw, str) or not raw.strip():
+        return None, "", False
+    if raw.lstrip().lower().startswith(("<js>", "@js:")):
+        _issue(
+            diagnostics,
+            "conversion.discover_script_unsupported",
+            "$.exploreUrl",
+            "动态发现脚本无法确定性离线转换。",
+            raw,
+        )
+        return None, "", False
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError:
+        converted = _convert_template(raw, "$.exploreUrl", diagnostics)
+        return converted, "", False
+    if isinstance(decoded, dict):
+        return _convert_combined_discover(decoded, diagnostics), "", False
+    if not isinstance(decoded, list):
+        return None, "", False
+
+    channel = "分类"
+    rows: List[str] = []
+    used_qimao_adapter = False
+    for item in decoded:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        address = item.get("url")
+        if not isinstance(address, str) or not address.strip():
+            if title:
+                channel = title
+            continue
+        qimao = _qimao_category_address(address, source)
+        if qimao is not None:
+            _, converted_address = qimao
+            used_qimao_adapter = True
+        else:
+            converted_address = _convert_address(address, "$.exploreUrl", diagnostics)
+        if title and converted_address:
+            rows.append("{}::{}::{}".format(channel, title, converted_address))
+    return ("\n".join(rows) if rows else None), channel, used_qimao_adapter
+
+
 def convert_source(parsed: ParsedSource) -> ConversionResult:
     source = parsed.value
     diagnostics = list(scan_capabilities(source))
@@ -328,12 +534,42 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
             "kind": "searchTags",
             "coverUrl": "searchCover",
             "author": "searchAuthor",
+            "status": "searchStatus",
             "lastChapter": "searchChapter",
             "intro": "searchDescription",
         },
         "ruleSearch",
         diagnostics,
     )
+
+    discover_url, _, used_qimao_adapter = _convert_discover(source, diagnostics)
+    if discover_url:
+        rule["discoverUrl"] = discover_url
+    _map_selector_fields(
+        rule,
+        source.get("ruleExplore"),
+        {
+            "bookList": "discoverList",
+            "name": "discoverName",
+            "bookUrl": "discoverResult",
+            "kind": "discoverTags",
+            "coverUrl": "discoverCover",
+            "author": "discoverAuthor",
+            "status": "discoverStatus",
+            "lastChapter": "discoverChapter",
+            "intro": "discoverDescription",
+        },
+        "ruleExplore",
+        diagnostics,
+    )
+
+    book_info = source.get("ruleBookInfo")
+    if isinstance(book_info, Mapping):
+        chapter_url = _convert_address(
+            book_info.get("tocUrl"), "$.ruleBookInfo.tocUrl", diagnostics
+        )
+        if chapter_url:
+            rule["chapterUrl"] = chapter_url
 
     _map_selector_fields(
         rule,
@@ -346,6 +582,13 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
         "ruleToc",
         diagnostics,
     )
+    rule_toc = source.get("ruleToc")
+    if isinstance(rule_toc, Mapping):
+        next_url = _convert_address(
+            rule_toc.get("nextTocUrl"), "$.ruleToc.nextTocUrl", diagnostics
+        )
+        if next_url:
+            rule["chapterNextUrl"] = next_url
     _map_selector_fields(
         rule,
         source.get("ruleContent"),
@@ -354,7 +597,110 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
         diagnostics,
     )
 
+    rule_content = source.get("ruleContent")
+    if isinstance(rule_content, Mapping):
+        content_url = _convert_address(
+            rule_content.get("contentUrl"), "$.ruleContent.contentUrl", diagnostics
+        )
+        if content_url:
+            rule["contentUrl"] = content_url
+        next_content_url = _convert_address(
+            rule_content.get("nextContentUrl"),
+            "$.ruleContent.nextContentUrl",
+            diagnostics,
+        )
+        if next_content_url:
+            rule["contentNextUrl"] = next_content_url
+
+    load_js, uses_crypto = _convert_load_js(source, diagnostics)
+    if used_qimao_adapter:
+        sign_key = _extract_sign_key(source)
+        if sign_key:
+            helper = _qimao_api_request_helper(sign_key, _static_headers(source))
+            load_js = helper + ("\n\n" + load_js if load_js else "")
+            uses_crypto = True
+        else:
+            _issue(
+                diagnostics,
+                "conversion.qimao_sign_key_missing",
+                "$.exploreUrl",
+                "识别到七猫签名分类，但没有找到 sign_key。",
+            )
+            rule.pop("discoverUrl", None)
+    if load_js:
+        rule["loadJs"] = load_js
+    if uses_crypto:
+        rule["useCryptoJS"] = True
+
     search_required = {"searchUrl", "searchList", "searchName", "searchResult"}
+    discover_required = {
+        "discoverUrl",
+        "discoverList",
+        "discoverName",
+        "discoverResult",
+    }
+    chapter_required = {"chapterList", "chapterName"}
+    content_required = {"contentItems"}
+    converted_stages: List[str] = []
+    disabled_stages: List[str] = []
+
+    search_requested = bool(source.get("searchUrl") or source.get("ruleSearch"))
     rule["enableSearch"] = search_required.issubset(rule)
-    rule["enableDiscover"] = False
-    return ConversionResult(source=parsed, rule=rule, diagnostics=diagnostics)
+    if rule["enableSearch"]:
+        converted_stages.append("search")
+    elif search_requested:
+        disabled_stages.append("search")
+        _issue(
+            diagnostics,
+            "conversion.search_incomplete",
+            "$.ruleSearch",
+            "搜索阶段缺少可转换的 URL、列表、名称或作品结果。",
+        )
+
+    discover_requested = bool(source.get("enabledExplore") or source.get("exploreUrl"))
+    rule["enableDiscover"] = discover_required.issubset(rule)
+    if rule["enableDiscover"]:
+        converted_stages.append("discover")
+    elif discover_requested:
+        disabled_stages.append("discover")
+        if not any(item.code.startswith("conversion.discover_") for item in diagnostics):
+            _issue(
+                diagnostics,
+                "conversion.discover_incomplete",
+                "$.ruleExplore",
+                "发现阶段缺少可转换的 URL、列表、名称或作品结果。",
+            )
+
+    if chapter_required.issubset(rule) and (
+        "chapterResult" in rule or "chapterPayload" in rule
+    ):
+        converted_stages.append("chapter")
+    else:
+        _issue(
+            diagnostics,
+            "conversion.chapter_incomplete",
+            "$.ruleToc",
+            "目录阶段缺少章节列表、名称或章节结果。",
+            source.get("ruleToc", ""),
+            severity="error",
+        )
+
+    if content_required.issubset(rule):
+        converted_stages.append("content")
+    else:
+        _issue(
+            diagnostics,
+            "conversion.content_incomplete",
+            "$.ruleContent",
+            "正文阶段缺少可转换的内容规则。",
+            source.get("ruleContent", ""),
+            severity="error",
+        )
+
+    return ConversionResult(
+        source=parsed,
+        rule=rule,
+        diagnostics=diagnostics,
+        converted_stages=converted_stages,
+        disabled_stages=disabled_stages,
+    )

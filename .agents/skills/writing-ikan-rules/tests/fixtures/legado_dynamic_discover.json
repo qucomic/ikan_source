@@ -1,0 +1,30 @@
+{
+  "bookSourceName": "七猫签名分类示例",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://api-bc.wtzw.com#fixture",
+  "enabledExplore": true,
+  "exploreUrl": "[{\"title\":\"男频\",\"url\":\"\"},{\"title\":\"玄幻\",\"url\":\"https://www.baidu.com/category/gender=2&category_id=202&need_filters=1&page={{page}}&need_category=1\"},{\"title\":\"热血\",\"url\":\"https://www.baidu.com/tag/need_filters=1&tag_id=1&gender=2&page={{page}}\"}]",
+  "jsLib": "function label(value) { return value; }",
+  "ruleExplore": {
+    "bookList": "$.data.books[*]",
+    "name": "$.title",
+    "bookUrl": "{{$.id}}",
+    "author": "$.author"
+  },
+  "ruleToc": {
+    "chapterList": "$.data.chapter_list[*]",
+    "chapterName": "$.title",
+    "chapterUrl": "$.id"
+  },
+  "ruleContent": {
+    "content": "$.data.content"
+  },
+  "ruleSearch": {
+    "bookList": "$.data.books[*]",
+    "name": "$.title",
+    "bookUrl": "{{$.id}}"
+  },
+  "searchUrl": "/api/search?q={{key}}&page={{page}}",
+  "header": "{\"app-version\":\"51110\",\"platform\":\"android\"}",
+  "bookSourceComment": "sign_key='fixture-sign-key'"
+}

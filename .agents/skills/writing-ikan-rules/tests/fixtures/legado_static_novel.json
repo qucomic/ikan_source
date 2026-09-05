@@ -1,0 +1,32 @@
+{
+  "bookSourceName": "静态小说示例",
+  "bookSourceGroup": "fixtures",
+  "bookSourceType": 0,
+  "bookSourceUrl": "https://fiction.example",
+  "enabled": true,
+  "enabledExplore": true,
+  "searchUrl": "/search?q={{key}}&page={{page}}",
+  "exploreUrl": "[{\"title\":\"玄幻\",\"url\":\"/sort/1_{{page}}/\"},{\"title\":\"都市\",\"url\":\"/sort/2_{{page}}/\"}]",
+  "ruleSearch": {
+    "bookList": ".book",
+    "name": ".title@text",
+    "bookUrl": ".title@href",
+    "author": ".author@text",
+    "coverUrl": "img@src",
+    "intro": ".intro@text"
+  },
+  "ruleExplore": {
+    "bookList": ".book",
+    "name": ".title@text",
+    "bookUrl": ".title@href",
+    "author": ".author@text"
+  },
+  "ruleToc": {
+    "chapterList": ".chapters a",
+    "chapterName": "text",
+    "chapterUrl": "href"
+  },
+  "ruleContent": {
+    "content": "#content@text"
+  }
+}
