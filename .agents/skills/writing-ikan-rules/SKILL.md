@@ -39,6 +39,8 @@ Create one ordinary JSON rule object for the current Ikan engine. Never encode i
 | Relative URLs | Prefer engine resolution against the current `baseUrl`/`host`; add JavaScript only when the API requires ID-to-URL construction. |
 | Dynamic page | Inspect scripts/network first. Prefer its usable HTTP/JSON API; treat WebView as the fallback and verify post-render DOM timing. |
 | Combined discover filters | Use `@@DiscoverRule:` with `rules` or `groups`. Its address expression is a restricted template evaluator, not general JavaScript: build the request directly with `host`, `params.join("&")`, `values`, `page`, and an optional simple request object. |
+| Combined filters requiring `loadJs` signing | Let the `@@DiscoverRule` template expand all selected `values` into a string beginning with nested `@js:`. The request evaluator then runs that inner script with the current `page` and the rule execution session, so it can call `apiRequest()` or another `loadJs` helper for every page. |
+| Independent dynamic categories with per-page signing | Ordinary `discoverUrl @js:` must return legacy category strings whose address is a nested `@js:` expression, such as `分类::名称::@js:apiRequest(...)`. Preserve `${page}` for the nested evaluation; do not return `{title, url, headers}` objects from the outer script. |
 | Author advertising | `adUrl` is an HTTPS URL returning the documented advertising JSON, not an image URL. |
 | Images needing headers or transforms | Return structured image objects as documented in `rules/06-images-and-transforms.md`. |
 | CSS pseudo-classes | Use the structural pseudo-classes documented in `rules/03-selectors-and-values.md`. Do not assume full browser CSS4 support; the validator rejects unsupported pseudo-classes and pseudo-elements. |
@@ -62,7 +64,28 @@ When the website allows multiple filter rows to apply together, generate this sh
 {"rules":[...]}
 ```
 
-Use `${values.key}` or `${values['filter[key]']}` when a value must occupy a fixed path or an explicitly encoded parameter. A simple `{url, method, headers, body}` request object is also supported. If the address cannot be expressed with these forms, report the engine limitation instead of emitting executable-looking JavaScript.
+Use `${values.key}` or `${values['filter[key]']}` when a value must occupy a fixed path or an explicitly encoded parameter. A simple `{url, method, headers, body}` request object is also supported.
+
+If the combined request needs a signing function from `loadJs`, the restricted outer template must return a nested `@js:` address. It expands the selected values first; the normal address evaluator then fills `${page}` and executes the inner script, allowing the helper to return a URL or request object with signed query parameters, headers, or body.
+
+```javascript
+@js:
+`@js:apiRequest('https://api.example.com', '/books', {sort: '${values.sort}', area: '${values.area}', category: '${values.category}', page: ${page}})`
+@@DiscoverRule:
+{"rules":[...]}
+```
+
+Do not write `apiRequest(...)` directly as the outer expression: the waterfall evaluator does not execute arbitrary JavaScript or initialize `loadJs`. Keep `${page}` literal in the outer result so signing runs again for every page. If neither the direct restricted template nor this nested-address form can represent the request, report the engine limitation.
+
+### Independently selectable dynamic categories
+
+Use this form when discovery is a list of separate categories or tags and each page request must be signed by a function from `loadJs`, such as `apiRequest()`. The outer `@js:` builds category definitions; the nested `@js:` runs later with the selected page and creates the final request object.
+
+```json
+"discoverUrl": "@js:(() => { const categories = [{title: '玄幻', id: 1}]; return categories.map(item => `分类::${item.title}::@js:apiRequest('/category', {id: ${item.id}, page: \\${page}})`); })()"
+```
+
+The JSON text needs `\\${page}` so the outer JavaScript emits the literal `${page}`. Do not call `apiRequest()` in the outer mapping and return `{title, url, headers}`: ordinary discovery normalizes each map to a request string, does not read its `title` as the category label, and evaluates page-dependent signing while the category map is initialized. This can display every category as the default title and freeze pagination at the initialization page.
 
 ### Multi-road chapter contract
 
@@ -97,6 +120,8 @@ When `enableMultiRoads` is `true`, always provide both `chapterRoads` and `chapt
 - Writing `@text`/`@href` when the current `*List` item is already the target element; generate `text`/`href` instead.
 - Selecting WebView for a dynamic shell before checking its underlying API or confirming that asynchronous target nodes exist in the captured HTML.
 - Treating the `@@DiscoverRule:` prelude as full JavaScript and constructing queries with declarations, `filter()`, arbitrary `map()`, `push()`, `encodeURIComponent()`, or a custom `query.join()`. These expressions are not executed by the waterfall template evaluator; use `params.join("&")` or direct `values` substitutions.
+- Calling `apiRequest()` or another `loadJs` helper directly in the `@@DiscoverRule` prelude. Return a quoted nested `@js:` address so the request evaluator invokes the helper after expanding the selected values and current page.
+- Returning `{title, url, headers}` objects from an ordinary dynamic `discoverUrl` to represent independent categories. Return `分类::名称::@js:...` strings and defer page-sensitive signing to the nested `@js:` address.
 - Selecting all chapter links globally while `enableMultiRoads` is true. `chapterList` must be relative to the current `chapterRoads` node so chapters do not leak across roads.
 - Enabling multi-road mode for volume headings or visual tabs that do not own independent chapter lists, or leaving `chapterRoads`/`chapterRoadName` populated while multi-road mode is disabled.
 - Using browser-only selectors such as `:has(...)`, `:hover`, or `::before`; prefer stable classes/attributes or JavaScript when supported structural pseudo-classes are insufficient.

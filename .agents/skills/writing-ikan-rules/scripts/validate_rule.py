@@ -159,6 +159,10 @@ UNSUPPORTED_WATERFALL_SCRIPT_PATTERNS = (
     (re.compile(r"\bencodeURIComponent\s*\("), "encodeURIComponent()"),
     (re.compile(r"\b(?!params\b)[A-Za-z_$][\w$]*\.join\s*\("), "自定义 join()"),
 )
+DIRECT_WATERFALL_FUNCTION_CALL_PATTERN = re.compile(
+    r"^(?:return\s+)?(?!JSON\.stringify\b)([A-Za-z_$][\w$]*)\s*\(",
+    re.DOTALL,
+)
 
 
 def _present(rule: dict, field: str) -> bool:
@@ -207,12 +211,30 @@ def _unsupported_waterfall_script_features(value: str) -> List[str]:
         return []
     script = value[:marker_index].strip()
     if script.lower().startswith("@js:"):
-        script = script[script.index(":") + 1 :]
-    return [
+        script = script[script.index(":") + 1 :].strip()
+    unsupported = [
         label
         for pattern, label in UNSUPPORTED_WATERFALL_SCRIPT_PATTERNS
         if pattern.search(script)
     ]
+    if DIRECT_WATERFALL_FUNCTION_CALL_PATTERN.search(script):
+        unsupported.append("直接调用 loadJs/自定义函数")
+    return unsupported
+
+
+def _looks_like_eager_discover_request_object_list(value: str) -> bool:
+    """Detect labeled request objects that ordinary discovery cannot use as categories."""
+    stripped = value.lstrip()
+    if not stripped.startswith("@js:") or WATERFALL_MARKER in value:
+        return False
+    return all(
+        pattern.search(value)
+        for pattern in (
+            re.compile(r"\.map\s*\("),
+            re.compile(r"\btitle\s*:"),
+            re.compile(r"\burl\s*:"),
+        )
+    )
 
 
 def validate_document(document: Any) -> List[Issue]:
@@ -310,6 +332,16 @@ def validate_rule(rule: dict) -> List[Issue]:
                         "${{values.xxx}}、${{page}} 或简单请求对象。".format(
                             ", ".join(unsupported_waterfall)
                         ),
+                    )
+                )
+            if _looks_like_eager_discover_request_object_list(value):
+                issues.append(
+                    _warning(
+                        field,
+                        "普通 discoverUrl @js: 返回的 {title, url, headers} 对象列表"
+                        "不能提供分类标题，并会在分类初始化时提前固定 page/签名。"
+                        "请让外层 JS 返回“分类::名称::@js:请求表达式”，"
+                        "由内层 @js: 在实际页码请求时调用 apiRequest()。",
                     )
                 )
         if not is_js and stripped[:1] in {"{", "["}:

@@ -246,6 +246,114 @@ class ValidateRuleTests(unittest.TestCase):
 
         self.assertNotIn("discoverUrl", fields_for(issues, "error"))
 
+    def test_rejects_direct_load_js_function_call_in_waterfall_template(self):
+        rule = {
+            "id": "direct-signed-waterfall",
+            "name": "外层直接签名的组合筛选",
+            "host": "https://example.com",
+            "contentType": "novel",
+            "enableSearch": False,
+            "enableDiscover": True,
+            "discoverUrl": """@js:
+apiRequest('/category', {sort: values.sort, area: values.area, page: page})
+@@DiscoverRule:
+{"rules":[{"name":"排序","key":"sort","value":"latest","options":[{"option":"最新","value":"latest"}]},{"name":"地区","key":"area","value":"all","options":[{"option":"全部","value":"all"}]}]}
+""",
+            "discoverList": "$.data[*]",
+            "discoverName": "$.name",
+            "discoverResult": "$.id",
+            "chapterList": "$.chapters[*]",
+            "chapterName": "$.name",
+            "chapterResult": "$.id",
+            "contentItems": "$.content",
+        }
+
+        issues = VALIDATOR.validate_document(rule)
+
+        self.assertIn("discoverUrl", fields_for(issues, "error"))
+
+    def test_accepts_waterfall_template_that_defers_signing_to_nested_js(self):
+        rule = {
+            "id": "deferred-signed-waterfall",
+            "name": "延迟签名的组合筛选",
+            "host": "https://example.com",
+            "contentType": "novel",
+            "enableSearch": False,
+            "enableDiscover": True,
+            "discoverUrl": """@js:
+`@js:apiRequest('/category', {sort: '${values.sort}', area: '${values.area}', page: ${page}})`
+@@DiscoverRule:
+{"rules":[{"name":"排序","key":"sort","value":"latest","options":[{"option":"最新","value":"latest"}]},{"name":"地区","key":"area","value":"all","options":[{"option":"全部","value":"all"}]}]}
+""",
+            "discoverList": "$.data[*]",
+            "discoverName": "$.name",
+            "discoverResult": "$.id",
+            "chapterList": "$.chapters[*]",
+            "chapterName": "$.name",
+            "chapterResult": "$.id",
+            "contentItems": "$.content",
+        }
+
+        issues = VALIDATOR.validate_document(rule)
+
+        self.assertNotIn("discoverUrl", fields_for(issues, "error"))
+        self.assertNotIn("discoverUrl", fields_for(issues, "warning"))
+
+    def test_warns_when_dynamic_discover_eagerly_returns_labeled_request_objects(self):
+        rule = {
+            "id": "eager-dynamic-discover",
+            "name": "提前签名的动态分类",
+            "host": "https://example.com",
+            "contentType": "novel",
+            "enableSearch": False,
+            "enableDiscover": True,
+            "discoverUrl": """@js:(() => {
+  const categories = [{title: '玄幻', id: 1}];
+  return categories.map(item => {
+    const request = apiRequest('/category', {id: item.id, page: page});
+    return {title: item.title, url: request.url, headers: request.headers};
+  });
+})()""",
+            "discoverList": "$.data[*]",
+            "discoverName": "$.name",
+            "discoverResult": "$.id",
+            "chapterList": "$.chapters[*]",
+            "chapterName": "$.name",
+            "chapterResult": "$.id",
+            "contentItems": "$.content",
+        }
+
+        issues = VALIDATOR.validate_document(rule)
+
+        self.assertIn("discoverUrl", fields_for(issues, "warning"))
+
+    def test_accepts_dynamic_discover_with_deferred_nested_request_js(self):
+        rule = {
+            "id": "deferred-dynamic-discover",
+            "name": "延迟签名的动态分类",
+            "host": "https://example.com",
+            "contentType": "novel",
+            "enableSearch": False,
+            "enableDiscover": True,
+            "discoverUrl": """@js:(() => {
+  const categories = [{title: '玄幻', id: 1}];
+  return categories.map(item =>
+    `分类::${item.title}::@js:apiRequest('/category', {id: ${item.id}, page: \${page}})`
+  );
+})()""",
+            "discoverList": "$.data[*]",
+            "discoverName": "$.name",
+            "discoverResult": "$.id",
+            "chapterList": "$.chapters[*]",
+            "chapterName": "$.name",
+            "chapterResult": "$.id",
+            "contentItems": "$.content",
+        }
+
+        issues = VALIDATOR.validate_document(rule)
+
+        self.assertNotIn("discoverUrl", fields_for(issues, "warning"))
+
     def test_requires_road_selectors_when_multi_roads_are_enabled(self):
         rule = {
             "id": "missing-multi-road-fields",
