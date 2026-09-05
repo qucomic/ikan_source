@@ -1,6 +1,6 @@
 # Legado to Ikan Batch Converter Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build an offline CLI that tolerantly reads batches of Legado sources, emits one ordinary Ikan JSON candidate per source, validates each candidate, and writes a structured conversion report.
 
@@ -35,7 +35,7 @@
 - Produce `parse_text(text: str, origin: str) -> tuple[list[ParsedSource], list[Diagnostic]]`.
 - Produce `load_inputs(path: Path) -> tuple[list[ParsedSource], list[Diagnostic]]` with deterministic directory traversal.
 
-- [ ] **Step 1: Write failing parser tests**
+- [x] **Step 1: Write failing parser tests**
 
 Cover a single object, standard array, comma-separated objects without brackets, optional trailing comma, braces and `},{` inside JavaScript strings, non-object entries, malformed trailing content, and deterministic `.json`/`.txt` directory order.
 
@@ -49,7 +49,7 @@ def test_parses_comma_separated_objects_without_splitting_script_strings():
     self.assertEqual("batch.txt#2", sources[1].location.label)
 ```
 
-- [ ] **Step 2: Run parser tests and verify RED**
+- [x] **Step 2: Run parser tests and verify RED**
 
 Run:
 
@@ -59,7 +59,7 @@ python3 .agents/skills/writing-ikan-rules/tests/test_legado_input_parser.py
 
 Expected: import failure because `legado_converter.input_parser` does not exist.
 
-- [ ] **Step 3: Implement models and structural JSON stream parsing**
+- [x] **Step 3: Implement models and structural JSON stream parsing**
 
 Use `json.JSONDecoder().raw_decode` in a cursor loop. Accept optional commas and whitespace only between complete top-level values. Flatten array entries while retaining one-based source indexes. Reject unexpected non-comma trailing characters with an `input.invalid_json` error.
 
@@ -80,11 +80,11 @@ class ParsedSource:
 
 Directory loading must ignore other extensions and sort candidate paths by their POSIX path strings.
 
-- [ ] **Step 4: Run parser tests and verify GREEN**
+- [x] **Step 4: Run parser tests and verify GREEN**
 
 Run the parser test file and confirm all cases pass with no warnings or errors.
 
-- [ ] **Step 5: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```bash
 git add .agents/skills/writing-ikan-rules/scripts/legado_converter .agents/skills/writing-ikan-rules/tests/test_legado_input_parser.py
@@ -104,7 +104,7 @@ git commit -m "feat: parse legado rule batches"
 - Produce `redact_excerpt(value: Any, limit: int = 240) -> str`.
 - Diagnostic codes are stable strings beginning with `capability.`.
 
-- [ ] **Step 1: Write failing scanner tests**
+- [x] **Step 1: Write failing scanner tests**
 
 Create sanitized source fragments that independently exercise `java.ajax`, `java.get/put`, `source.getVariable/setVariable`, login info, cookies, WebView/browser calls, `JavaImporter`, `Packages.*`, CryptoJS, Java crypto, and virtual `bookSourceUrl`.
 
@@ -123,21 +123,21 @@ def test_scans_android_and_stateful_runtime_dependencies():
 
 Test that values associated with keys matching `authorization`, `cookie`, `password`, `token`, `secret`, and `key` are replaced by `[REDACTED]`, and that excerpts are bounded.
 
-- [ ] **Step 2: Run scanner tests and verify RED**
+- [x] **Step 2: Run scanner tests and verify RED**
 
 Run the scanner test file. Expected: import failure for the missing scanner module.
 
-- [ ] **Step 3: Implement recursive scanning and redaction**
+- [x] **Step 3: Implement recursive scanning and redaction**
 
 Walk dictionary/list/string values while retaining dot-separated field paths. Use explicit compiled patterns and deterministic diagnostic ordering. Detection is advisory and must not execute or parse JavaScript as Python.
 
 Redaction must serialize structured values after recursively masking sensitive keys. For raw strings, mask common header/assignment forms before truncating.
 
-- [ ] **Step 4: Run scanner tests and verify GREEN**
+- [x] **Step 4: Run scanner tests and verify GREEN**
 
 Confirm every capability code and redaction case passes.
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```bash
 git add .agents/skills/writing-ikan-rules/scripts/legado_converter/capability_scanner.py .agents/skills/writing-ikan-rules/tests/test_legado_capability_scanner.py
@@ -157,7 +157,7 @@ git commit -m "feat: scan legado conversion capabilities"
 - Keep helper interfaces private except `safe_output_name(name: str, identity: str) -> str` for CLI use.
 - `ConversionResult.rule` is one ordinary Ikan dictionary; diagnostics retain source field paths.
 
-- [ ] **Step 1: Write failing metadata and identity tests**
+- [x] **Step 1: Write failing metadata and identity tests**
 
 Assert deterministic IDs and file names, Unicode display-name preservation, duplicate-name separation by identity hash, host extraction from absolute source/request URLs, virtual-host diagnostics, and explicit Legado content-type mapping.
 
@@ -176,17 +176,17 @@ def test_converts_basic_novel_metadata_with_stable_identity():
     self.assertRegex(result.rule["id"], r"^legado-[0-9a-f]{16}$")
 ```
 
-- [ ] **Step 2: Run metadata tests and verify RED**
+- [x] **Step 2: Run metadata tests and verify RED**
 
 Expected: import failure for the missing converter module.
 
-- [ ] **Step 3: Implement metadata and identity conversion**
+- [x] **Step 3: Implement metadata and identity conversion**
 
 Use SHA-256 over canonical `bookSourceName + "\n" + bookSourceUrl`, truncated to 16 lowercase hex characters. Sanitize file stems without discarding Unicode letters/numbers; normalize separators and cap the stem length.
 
 Implement the tested Legado-to-Ikan content-type table. Unknown values produce `conversion.content_type` and use `mixed` only as an explicit candidate fallback.
 
-- [ ] **Step 4: Write failing URL and request tests**
+- [x] **Step 4: Write failing URL and request tests**
 
 Cover:
 
@@ -196,23 +196,23 @@ Cover:
 - static headers and request/response encoding;
 - unsupported Legado template expressions yielding diagnostics instead of fabricated output.
 
-- [ ] **Step 5: Implement URL template and request conversion**
+- [x] **Step 5: Implement URL template and request conversion**
 
 Parse request suffixes structurally with `json.JSONDecoder`, not comma splitting. Generate compact deterministic JavaScript request objects with direct `keyword`, `page`, `result`, and `host` variables. Preserve ordinary templates when a request object is unnecessary.
 
-- [ ] **Step 6: Write failing selector conversion tests**
+- [x] **Step 6: Write failing selector conversion tests**
 
 Cover common CSS class/tag/index shorthand, XPath, JSONPath, current-node `text/href/src`, `&&`, `||`, simple `##` replacement, and unsupported constructs.
 
-- [ ] **Step 7: Implement conservative selector conversion**
+- [x] **Step 7: Implement conservative selector conversion**
 
 Convert only recognized grammar. Return no executable candidate for unknown operators and add `conversion.selector_unsupported` with the original field path.
 
-- [ ] **Step 8: Run primitive tests and verify GREEN**
+- [x] **Step 8: Run primitive tests and verify GREEN**
 
 Run the full primitive test file and the existing validator tests.
 
-- [ ] **Step 9: Commit Task 3**
+- [x] **Step 9: Commit Task 3**
 
 ```bash
 git add .agents/skills/writing-ikan-rules/scripts/legado_converter/converter.py .agents/skills/writing-ikan-rules/tests/test_legado_converter_primitives.py
@@ -233,7 +233,7 @@ git commit -m "feat: convert legado rule primitives"
 - Extend `convert_source` to fill search/discover/chapter/content Ikan fields and `converted_stages`/`disabled_stages`.
 - Define deterministic diagnostic codes for incomplete stages and unsupported scripts.
 
-- [ ] **Step 1: Write failing static-stage tests**
+- [x] **Step 1: Write failing static-stage tests**
 
 Use a minimal HTML source and a minimal JSON API source. Assert complete mappings for:
 
@@ -250,15 +250,15 @@ ruleContent.content -> contentItems
 
 Also cover optional author, cover, status, latest chapter, intro, and tags fields.
 
-- [ ] **Step 2: Run static-stage tests and verify RED**
+- [x] **Step 2: Run static-stage tests and verify RED**
 
 Expected: required stage fields are absent or stages are not classified.
 
-- [ ] **Step 3: Implement stage mapping and disablement policy**
+- [x] **Step 3: Implement stage mapping and disablement policy**
 
 Search and discovery require address, list, name, and result; disable them when conversion cannot produce that set. Chapter/content remain in the candidate and record `conversion.chapter_incomplete` or `conversion.content_incomplete` when required fields are absent.
 
-- [ ] **Step 4: Write failing discovery tests**
+- [x] **Step 4: Write failing discovery tests**
 
 Cover:
 
@@ -269,23 +269,23 @@ Cover:
 - a combined signed filter returning nested `@js:apiRequest(...)` with literal `${page}`;
 - an opaque dynamic discovery script being disabled and reported.
 
-- [ ] **Step 5: Implement discovery conversion**
+- [x] **Step 5: Implement discovery conversion**
 
 Skip empty heading rows as requests while using them as the current channel name. Emit `channel::title::address` for independent categories. Generate `@@DiscoverRule` only from structurally recognized filter definitions with exact keys. Use nested `@js:` for recognized page-sensitive signing helpers.
 
-- [ ] **Step 6: Write failing JavaScript and crypto degradation tests**
+- [x] **Step 6: Write failing JavaScript and crypto degradation tests**
 
 Cover compatible `jsLib` functions, `java.md5Encode` rewriting to `CryptoJS.MD5`, Base64 helpers, recognized AES, unresolved `java.ajax`, `JavaImporter`, `Packages.*`, source variables, login APIs, and browser/UI calls.
 
-- [ ] **Step 7: Implement safe JavaScript rewrites**
+- [x] **Step 7: Implement safe JavaScript rewrites**
 
 Apply exact token/AST-light rewrites only to tested forms. Set `useCryptoJS: true` when generated fields or `loadJs` use CryptoJS. If unsupported runtime symbols remain, omit the executable fragment and add a diagnostic with a redacted excerpt.
 
-- [ ] **Step 8: Run stage tests and verify GREEN**
+- [x] **Step 8: Run stage tests and verify GREEN**
 
 Run stage, primitive, parser, scanner, and existing validator tests.
 
-- [ ] **Step 9: Commit Task 4**
+- [x] **Step 9: Commit Task 4**
 
 ```bash
 git add .agents/skills/writing-ikan-rules/scripts/legado_converter/converter.py .agents/skills/writing-ikan-rules/tests/fixtures .agents/skills/writing-ikan-rules/tests/test_legado_converter_stages.py
@@ -306,15 +306,15 @@ git commit -m "feat: convert legado rule stages"
 - Produce `run_conversion(input_path: Path, output_dir: Path) -> BatchResult` for direct tests.
 - Write deterministic, UTF-8, pretty-printed JSON with `ensure_ascii=False` and trailing newline.
 
-- [ ] **Step 1: Write failing batch/validator tests**
+- [x] **Step 1: Write failing batch/validator tests**
 
 Create a temporary input containing one complete source, one partial source, and one malformed/non-object entry. Assert continuation, deterministic output paths, one plain object per rule file, validator issue serialization, and summary counts.
 
-- [ ] **Step 2: Run batch tests and verify RED**
+- [x] **Step 2: Run batch tests and verify RED**
 
 Expected: CLI module and `run_conversion` do not exist.
 
-- [ ] **Step 3: Implement validator loading and report serialization**
+- [x] **Step 3: Implement validator loading and report serialization**
 
 Load sibling `validate_rule.py` by file path using `importlib.util`, call `validate_document`, and serialize each issue as `{level, field, message}`. Do not duplicate validation logic.
 
@@ -329,23 +329,23 @@ else:
     status = "converted"
 ```
 
-- [ ] **Step 4: Implement safe output writing**
+- [x] **Step 4: Implement safe output writing**
 
 Create the explicit output directory if needed. Write individual files atomically through a temporary file in that directory followed by `Path.replace`. Never delete unrelated files. Resolve same-batch name collisions deterministically.
 
-- [ ] **Step 5: Write failing CLI exit-code tests**
+- [x] **Step 5: Write failing CLI exit-code tests**
 
 Invoke the script with `subprocess.run` and assert codes `0`, `2`, and `1`, plus compact stdout summaries and useful stderr for batch-level failure.
 
-- [ ] **Step 6: Implement CLI argument handling and exit codes**
+- [x] **Step 6: Implement CLI argument handling and exit codes**
 
 Use `argparse`. Catch expected input/output errors at the top level, print one concise error, and return `1`. Return `2` whenever any processed source is partial/unsupported or any input diagnostic has error severity.
 
-- [ ] **Step 7: Run CLI tests and verify GREEN**
+- [x] **Step 7: Run CLI tests and verify GREEN**
 
 Run all converter tests and existing validator tests.
 
-- [ ] **Step 8: Commit Task 5**
+- [x] **Step 8: Commit Task 5**
 
 ```bash
 git add .agents/skills/writing-ikan-rules/scripts/convert_legado_rules.py .agents/skills/writing-ikan-rules/scripts/legado_converter/models.py .agents/skills/writing-ikan-rules/tests/test_convert_legado_rules_cli.py
@@ -365,15 +365,15 @@ git commit -m "feat: add legado batch conversion cli"
 - Document the CLI command, offline-only guarantee, report statuses, and the rule that converted output is not live verification.
 - Acceptance test invokes the public CLI contract only.
 
-- [ ] **Step 1: Write failing acceptance test**
+- [x] **Step 1: Write failing acceptance test**
 
 Use a sanitized comma-separated fixture containing a basic HTML source, a static JSON API source, and a source with unsupported Java/Android code. Assert three output candidates, accurate converted/partial summary counts, valid JSON report schema, and no secret literals in report excerpts.
 
-- [ ] **Step 2: Run acceptance test and verify RED**
+- [x] **Step 2: Run acceptance test and verify RED**
 
 Expected: fail until all public CLI/report behavior is integrated.
 
-- [ ] **Step 3: Add concise skill usage documentation**
+- [x] **Step 3: Add concise skill usage documentation**
 
 Add a “Batch conversion from Legado” section with:
 
@@ -383,7 +383,7 @@ python3 .agents/skills/writing-ikan-rules/scripts/convert_legado_rules.py INPUT 
 
 State that status `converted` means deterministic offline conversion plus static validation only. Require live stage checks before describing a rule as operational.
 
-- [ ] **Step 4: Run full automated verification**
+- [x] **Step 4: Run full automated verification**
 
 ```bash
 python3 -m unittest discover -s .agents/skills/writing-ikan-rules/tests -p 'test_*.py'
@@ -394,11 +394,11 @@ git diff --check
 
 Expected: all tests pass, the skill is valid, the existing 七猫 rule has zero errors/warnings, and no whitespace errors are reported.
 
-- [ ] **Step 5: Smoke-test the supplied sample batches without network access**
+- [x] **Step 5: Smoke-test the supplied sample batches without network access**
 
 Run the CLI separately against both supplied attachment files into temporary directories. Confirm all structurally parseable sources receive report records, partial/unsupported sources do not abort later entries, and no input JavaScript is executed.
 
-- [ ] **Step 6: Commit Task 6**
+- [x] **Step 6: Commit Task 6**
 
 ```bash
 git add .agents/skills/writing-ikan-rules/SKILL.md .agents/skills/writing-ikan-rules/tests/fixtures/legado_mixed_batch.txt .agents/skills/writing-ikan-rules/tests/test_legado_converter_acceptance.py
