@@ -167,7 +167,7 @@ class LegadoConverterPrimitiveTests(unittest.TestCase):
         self.assertEqual("@css:a@[0]@href", result.rule["searchResult"])
         self.assertEqual("$.author", result.rule["searchAuthor"])
         self.assertEqual(
-            ".info-chapters:nth-of-type(2)>a", result.rule["chapterList"]
+            ".info-chapters:nth-of-type(2) a", result.rule["chapterList"]
         )
         self.assertEqual("text", result.rule["chapterName"])
         self.assertEqual("href", result.rule["chapterResult"])
@@ -195,7 +195,7 @@ class LegadoConverterPrimitiveTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual(".r>ul>li&&.item", result.rule["discoverList"])
+        self.assertEqual(".r ul li&&.item", result.rule["discoverList"])
         self.assertEqual(
             ".s2@text&&@css:a@[1]@text", result.rule["discoverName"]
         )
@@ -204,7 +204,33 @@ class LegadoConverterPrimitiveTests(unittest.TestCase):
             ".s1@text&&@css:em@[0:1]@text",
             result.rule["discoverTags"],
         )
-        self.assertEqual("@css:#booktxt>p@textNodes", result.rule["contentItems"])
+        self.assertEqual("@css:#booktxt p@textNodes", result.rule["contentItems"])
+
+    def test_converts_legado_at_chain_to_css_descendants(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "descendant chain",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleSearch": {
+                        "bookList": ".book_box@span",
+                        "name": ".title@a@text",
+                        "bookUrl": ".title@a@href",
+                    },
+                    "ruleToc": {
+                        "chapterList": ".chapters@li@a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertEqual(".book_box span", result.rule["searchList"])
+        self.assertEqual(".title a@text", result.rule["searchName"])
+        self.assertEqual(".title a@href", result.rule["searchResult"])
+        self.assertEqual(".chapters li a", result.rule["chapterList"])
 
     def test_omits_legado_text_lookup_instead_of_emitting_invalid_css(self):
         result = convert_source(

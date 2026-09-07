@@ -367,7 +367,7 @@ def _convert_css_branch(value: str, *, list_selector: bool) -> Optional[str]:
         converted_nodes = [_convert_css_node(token) for token in tokens]
         if not converted_nodes or any(node is None for node in converted_nodes):
             return None
-        converted = ">".join(str(node) for node in converted_nodes)
+        converted = " ".join(str(node) for node in converted_nodes)
         if operation:
             converted += "@" + operation
         converted += reader

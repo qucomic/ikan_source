@@ -191,11 +191,11 @@ class LegadoConverterStageTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            "@css:.operates.clear>a@[1]@href", result.rule["chapterUrl"]
+            "@css:.operates.clear a@[1]@href", result.rule["chapterUrl"]
         )
-        self.assertEqual(".page-link>a@href", result.rule["chapterNextUrl"])
+        self.assertEqual(".page-link a@href", result.rule["chapterNextUrl"])
         self.assertEqual(
-            "@css:.bottem1>a@[2]@href", result.rule["contentNextUrl"]
+            "@css:.bottem1 a@[2]@href", result.rule["contentNextUrl"]
         )
 
     def test_omits_selector_pipelines_that_contain_legado_javascript(self):
