@@ -167,6 +167,85 @@ class LegadoConverterStageTests(unittest.TestCase):
             {item.code for item in unsupported.diagnostics},
         )
 
+    def test_converts_selector_valued_toc_and_pagination_urls(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "selector urls",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleBookInfo": {
+                        "tocUrl": "class.operates clear@tag.a.1@href"
+                    },
+                    "ruleToc": {
+                        "chapterList": ".chapters a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                        "nextTocUrl": ".page-link@a@href",
+                    },
+                    "ruleContent": {
+                        "content": "#content@text",
+                        "nextContentUrl": "class.bottem1@tag.a.2@href",
+                    },
+                }
+            )
+        )
+
+        self.assertEqual(
+            "@css:.operates.clear>a@[1]@href", result.rule["chapterUrl"]
+        )
+        self.assertEqual(".page-link>a@href", result.rule["chapterNextUrl"])
+        self.assertEqual(
+            "@css:.bottem1>a@[2]@href", result.rule["contentNextUrl"]
+        )
+
+    def test_omits_selector_pipelines_that_contain_legado_javascript(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "selector script",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleToc": {
+                        "chapterList": ".chapters a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                        "nextTocUrl": ".page-link@a@href\n@js:java.getString(result)",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertNotIn("chapterNextUrl", result.rule)
+        self.assertIn(
+            "conversion.selector_unsupported",
+            {item.code for item in result.diagnostics},
+        )
+
+    def test_omits_xpath_pipeline_with_legado_javascript(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "xpath script",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleBookInfo": {
+                        "tocUrl": "//*[@property='og:novel:read_url']/@content@js:result"
+                    },
+                    "ruleToc": {
+                        "chapterList": ".chapters a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertNotIn("chapterUrl", result.rule)
+        self.assertIn(
+            "conversion.selector_unsupported",
+            {item.code for item in result.diagnostics},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

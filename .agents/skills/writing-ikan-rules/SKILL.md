@@ -43,6 +43,14 @@ Report statuses mean:
 
 The converter never executes source JavaScript or performs network requests. `converted` is not proof that a website or API currently works; verify search, every discovery mode, directory, content, pagination, headers, authentication, and encryption against real responses before describing the rule as operational. Use the report's field-level diagnostics to finish `partial` candidates manually with this skill.
 
+For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters:
+
+- Legado `@` between selector nodes means a descendant step. Convert `.r@ul@li` to `.r>ul>li`; Ikan does not accept `.r@ul@li` as CSS.
+- A terminal Legado result index/range such as `a.0`, `li[-1:0]`, or `.item[!0,2]` becomes Ikan's result operation, for example `@css:a@[0]`, `@css:li@[-1:0]`, or `@css:.item@[!0,2]`.
+- Preserve terminal readers with Ikan syntax: `#content@ownText` becomes `@css:#content@ownText`, and `#content@p@textNodes` becomes `@css:#content>p@textNodes`.
+- Preserve top-level Legado `%%` as Ikan's round-robin interleave operator. Do not rewrite it as `&&`.
+- Do not use `:nth-of-type(...)` for a terminal Legado result index: it filters by sibling structure and is not equivalent to indexing the complete query result. An index on an intermediate Legado selector step cannot use Ikan's terminal result operation; convert only when the structural form is demonstrably equivalent, otherwise emit a field diagnostic.
+
 ## Non-obvious Rules
 
 | Situation | Required form |
@@ -62,6 +70,7 @@ The converter never executes source JavaScript or performs network requests. `co
 | Author advertising | `adUrl` is an HTTPS URL returning the documented advertising JSON, not an image URL. |
 | Images needing headers or transforms | Return structured image objects as documented in `rules/06-images-and-transforms.md`. |
 | CSS pseudo-classes | Use the structural pseudo-classes documented in `rules/03-selectors-and-values.md`. Do not assume full browser CSS4 support; the validator rejects unsupported pseudo-classes and pseudo-elements. |
+| CSS result operations | Use `@css:selector@[...]@reader`. Operations apply after the complete CSS query; they cannot be inserted between selector steps. |
 
 ## Output Contract
 

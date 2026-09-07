@@ -171,6 +171,15 @@ def _convert_address(
             source,
         )
         return None
+    if re.match(r"^text\.[^@]+@", source, re.IGNORECASE):
+        _issue(
+            diagnostics,
+            "conversion.selector_unsupported",
+            field,
+            "Legado 文本查找规则不能作为 Ikan CSS 选择器或普通地址直接使用。",
+            source,
+        )
+        return None
     request = _split_request_config(source)
     if request is None:
         return _convert_template(source, field, diagnostics)
@@ -202,30 +211,171 @@ def _convert_address(
     return "@js:({" + ",".join(properties) + "})"
 
 
-def _convert_css_shorthand(value: str) -> str:
-    reader = ""
-    base = value
-    if "@" in value:
-        base, suffix = value.rsplit("@", 1)
-        if suffix in {"text", "href", "src", "html", "outerHtml", "data-src"}:
-            reader = "@" + suffix
-        elif re.fullmatch(r"[A-Za-z][\w-]*", suffix):
-            reader = " " + suffix
-        else:
-            return value
-    match = re.fullmatch(r"(class|tag|id)\.([\w-]+)(?:\.(\d+))?", base)
+def _split_top_level(value: str, delimiter: str) -> List[str]:
+    parts: List[str] = []
+    start = 0
+    quote = ""
+    escaped = False
+    square_depth = 0
+    round_depth = 0
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif quote:
+            if char == quote:
+                quote = ""
+        elif char in {"'", '"'}:
+            quote = char
+        elif char == "[":
+            square_depth += 1
+        elif char == "]":
+            square_depth = max(0, square_depth - 1)
+        elif char == "(":
+            round_depth += 1
+        elif char == ")":
+            round_depth = max(0, round_depth - 1)
+        elif square_depth == 0 and round_depth == 0 and value.startswith(
+            delimiter, index
+        ):
+            parts.append(value[start:index])
+            parts.append(delimiter)
+            index += len(delimiter)
+            start = index
+            continue
+        index += 1
+    parts.append(value[start:])
+    return parts
+
+
+def _convert_position(selector: str) -> Optional[str]:
+    match = re.fullmatch(r"(.+?)\.(-?\d+)(?::(-?\d+))?", selector)
     if not match:
-        return value
-    kind, name, index = match.groups()
-    if kind == "class":
-        selector = "." + name
-    elif kind == "id":
-        selector = "#" + name
+        return selector
+    base, start_text, end_text = match.groups()
+    start = int(start_text)
+    if end_text is None:
+        if start == -1:
+            return base + ":last-of-type"
+        if start < 0:
+            return None
+        return base + ":nth-of-type({})".format(start + 1)
+
+    end = int(end_text)
+    if start < 0 or end < -1 or (end != -1 and end < start):
+        return None
+    if start == 0 and end == -1:
+        return base
+    if end == -1:
+        return base + ":nth-of-type(n+{})".format(start + 1)
+    if start == end:
+        return base + ":nth-of-type({})".format(start + 1)
+    upper = ":nth-of-type(-n+{})".format(end + 1)
+    if start == 0:
+        return base + upper
+    return base + ":nth-of-type(n+{})".format(start + 1) + upper
+
+
+def _extract_result_operation(selector: str) -> Tuple[str, Optional[str]]:
+    bracket = re.fullmatch(
+        r"(.+?)(\[(?:!)?-?\d*(?::-?\d*(?::-?\d+)?)?(?:,-?\d*(?::-?\d*(?::-?\d+)?)?)*\])",
+        selector,
+    )
+    if bracket and re.search(r"\d", bracket.group(2)):
+        return bracket.group(1), bracket.group(2)
+
+    compact = re.fullmatch(r"(.+?)\.(-?\d+(?::-?\d+(?::-?\d+)?)?)", selector)
+    if compact:
+        return compact.group(1), "[{}]".format(compact.group(2))
+    return selector, None
+
+
+def _convert_css_node(value: str) -> Optional[str]:
+    node = value.strip()
+    match = re.fullmatch(r"(class|tag|id)\.(.+)", node)
+    if match:
+        kind, body = match.groups()
+        position_match = re.fullmatch(r"(.+?)\.(-?\d+(?::-?\d+)?)", body)
+        if position_match:
+            body, position = position_match.groups()
+        else:
+            position = None
+        names = body.split()
+        if not names or any(not re.fullmatch(r"[\w-]+", name) for name in names):
+            return None
+        if kind == "class":
+            node = "".join("." + name for name in names)
+        elif kind == "id":
+            if len(names) != 1:
+                return None
+            node = "#" + names[0]
+        else:
+            if len(names) != 1:
+                return None
+            node = names[0]
+        if position is not None:
+            node += "." + position
+    if "!" in node:
+        return None
+    return _convert_position(node)
+
+
+def _convert_css_branch(value: str, *, list_selector: bool) -> Optional[str]:
+    selector_rule, separator, replacement = value.partition("##")
+    explicit_css = selector_rule.lstrip().lower().startswith("@css:")
+    if explicit_css:
+        selector_rule = selector_rule.lstrip()[len("@css:") :]
+    selector_rule = re.sub(r"\s+@(textNodes|text|html|outerHtml|href|src|[\w-]+)\s*$", r"@\1", selector_rule)
+    if re.search(r"@(put|get):", selector_rule, re.IGNORECASE):
+        return None
+
+    if selector_rule in {"text", "html", "outerHtml", "href", "src"}:
+        converted = selector_rule
+    elif selector_rule.startswith("@") and re.fullmatch(r"@[A-Za-z][\w-]*", selector_rule):
+        converted = selector_rule[1:]
     else:
-        selector = name
-    if index is not None:
-        selector += ":nth-of-type({})".format(int(index) + 1)
-    return selector + reader
+        chain = _split_top_level(selector_rule, "@")
+        tokens = [part.strip() for part in chain if part != "@"]
+        if not tokens or re.match(r"^text\.[^@]+$", tokens[0], re.IGNORECASE):
+            return None
+        if any(
+            token in {"text", "html", "outerHtml", "ownText", "textNodes"}
+            for token in tokens[:-1]
+        ):
+            return None
+        reader = ""
+        if len(tokens) > 1:
+            terminal = tokens[-1]
+            if terminal == "all":
+                return None
+            if terminal in {"ownText", "textNodes"}:
+                reader = "@" + terminal
+                tokens.pop()
+            elif terminal in {"text", "html", "outerHtml", "href", "src"} or not list_selector and re.fullmatch(
+                r"[A-Za-z_][\w-]*", terminal
+            ) and terminal not in {
+                "a", "article", "body", "dd", "div", "dl", "dt", "em", "h1", "h2", "h3", "h4", "h5", "h6", "header", "i", "img", "li", "main", "ol", "option", "p", "section", "span", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul"
+            }:
+                reader = "@" + terminal
+                tokens.pop()
+        operation = None
+        if tokens:
+            tokens[-1], operation = _extract_result_operation(tokens[-1])
+        converted_nodes = [_convert_css_node(token) for token in tokens]
+        if not converted_nodes or any(node is None for node in converted_nodes):
+            return None
+        converted = ">".join(str(node) for node in converted_nodes)
+        if operation:
+            converted += "@" + operation
+        converted += reader
+        if explicit_css or operation or reader in {"@ownText", "@textNodes"}:
+            converted = "@css:" + converted
+    if separator:
+        converted += separator + replacement
+    return converted
 
 
 def _convert_selector(
@@ -236,7 +386,7 @@ def _convert_selector(
     source = value.strip()
     if source.startswith("<XPath>"):
         return "@xpath:" + source[len("<XPath>") :].strip()
-    if source.lower().startswith(("<js>", "@js:")):
+    if re.search(r"(?:<js>|@js:)", source, re.IGNORECASE):
         _issue(
             diagnostics,
             "conversion.selector_unsupported",
@@ -260,11 +410,61 @@ def _convert_selector(
             source,
         )
         return None
-    branches = re.split(r"(&&|\|\|)", source)
-    return "".join(
-        part if part in {"&&", "||"} else _convert_css_shorthand(part.strip())
-        for part in branches
-    )
+    branches = _split_top_level(source, "&&")
+    expanded: List[str] = []
+    for branch in branches:
+        if branch == "&&":
+            expanded.append(branch)
+        else:
+            fallback_parts = _split_top_level(branch, "||")
+            for fallback_part in fallback_parts:
+                if fallback_part == "||":
+                    expanded.append(fallback_part)
+                else:
+                    expanded.extend(_split_top_level(fallback_part, "%%"))
+    converted: List[str] = []
+    for part in expanded:
+        if part in {"&&", "||", "%%"}:
+            converted.append(part)
+            continue
+        branch = part.strip()
+        if branch.startswith(("$", "//", "@json:", "@xpath:")):
+            converted.append(branch)
+            continue
+        css = _convert_css_branch(
+            branch,
+            list_selector=field.endswith((".bookList", ".chapterList")),
+        )
+        if css is None:
+            _issue(
+                diagnostics,
+                "conversion.selector_unsupported",
+                field,
+                "Legado 选择器无法可靠转换为 Ikan 规则。",
+                source,
+            )
+            return None
+        converted.append(css)
+    return "".join(converted)
+
+
+def _convert_address_or_selector(
+    value: Any, field: str, diagnostics: List[Diagnostic]
+) -> Optional[str]:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    source = value.strip()
+    if source.lower().startswith(("http://", "https://")) or (
+        source.startswith(("/", "./", "../")) and not source.startswith("//")
+    ):
+        return _convert_address(source, field, diagnostics)
+    if (
+        "@" in source
+        or source.startswith((".", "#", "[", "//", "$"))
+        or re.match(r"^(?:class|tag|id|text)\.", source, re.IGNORECASE)
+    ):
+        return _convert_selector(source, field, diagnostics)
+    return _convert_address(source, field, diagnostics)
 
 
 def _copy_metadata(source: Mapping[str, Any], diagnostics: List[Diagnostic]) -> Dict[str, Any]:
@@ -565,7 +765,7 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
 
     book_info = source.get("ruleBookInfo")
     if isinstance(book_info, Mapping):
-        chapter_url = _convert_address(
+        chapter_url = _convert_address_or_selector(
             book_info.get("tocUrl"), "$.ruleBookInfo.tocUrl", diagnostics
         )
         if chapter_url:
@@ -584,7 +784,7 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
     )
     rule_toc = source.get("ruleToc")
     if isinstance(rule_toc, Mapping):
-        next_url = _convert_address(
+        next_url = _convert_address_or_selector(
             rule_toc.get("nextTocUrl"), "$.ruleToc.nextTocUrl", diagnostics
         )
         if next_url:
@@ -604,7 +804,7 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
         )
         if content_url:
             rule["contentUrl"] = content_url
-        next_content_url = _convert_address(
+        next_content_url = _convert_address_or_selector(
             rule_content.get("nextContentUrl"),
             "$.ruleContent.nextContentUrl",
             diagnostics,

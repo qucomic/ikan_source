@@ -163,15 +163,149 @@ class LegadoConverterPrimitiveTests(unittest.TestCase):
         )
 
         self.assertEqual(".book-item", result.rule["searchList"])
-        self.assertEqual("a:nth-of-type(1)@text", result.rule["searchName"])
-        self.assertEqual("a:nth-of-type(1)@href", result.rule["searchResult"])
+        self.assertEqual("@css:a@[0]@text", result.rule["searchName"])
+        self.assertEqual("@css:a@[0]@href", result.rule["searchResult"])
         self.assertEqual("$.author", result.rule["searchAuthor"])
         self.assertEqual(
-            ".info-chapters:nth-of-type(2) a", result.rule["chapterList"]
+            ".info-chapters:nth-of-type(2)>a", result.rule["chapterList"]
         )
         self.assertEqual("text", result.rule["chapterName"])
         self.assertEqual("href", result.rule["chapterResult"])
         self.assertEqual("//div[@id='content']/text()", result.rule["contentItems"])
+
+    def test_converts_legado_chained_css_and_compact_indices(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "5书库选择器",
+                    "bookSourceUrl": "http://www.shuku520.net",
+                    "ruleExplore": {
+                        "bookList": ".r@ul@li&&.item",
+                        "name": ".s2@text&&a.1@text",
+                        "bookUrl": "a.0@href",
+                        "kind": ".s1@text&&em.0:1@text",
+                    },
+                    "ruleToc": {
+                        "chapterList": "#content_1 a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {"content": "#booktxt@p@textNodes"},
+                }
+            )
+        )
+
+        self.assertEqual(".r>ul>li&&.item", result.rule["discoverList"])
+        self.assertEqual(
+            ".s2@text&&@css:a@[1]@text", result.rule["discoverName"]
+        )
+        self.assertEqual("@css:a@[0]@href", result.rule["discoverResult"])
+        self.assertEqual(
+            ".s1@text&&@css:em@[0:1]@text",
+            result.rule["discoverTags"],
+        )
+        self.assertEqual("@css:#booktxt>p@textNodes", result.rule["contentItems"])
+
+    def test_omits_legado_text_lookup_instead_of_emitting_invalid_css(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "text lookup",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleToc": {
+                        "chapterList": ".chapters a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {
+                        "content": "#content@text",
+                        "nextContentUrl": "text.下一页@href",
+                    },
+                }
+            )
+        )
+
+        self.assertNotIn("contentNextUrl", result.rule)
+        self.assertIn(
+            "conversion.selector_unsupported",
+            {item.code for item in result.diagnostics},
+        )
+
+    def test_converts_legado_direct_text_readers(self):
+        for reader in ("ownText", "textNodes"):
+            with self.subTest(reader=reader):
+                result = convert_source(
+                    parsed(
+                        {
+                            "bookSourceName": reader,
+                            "bookSourceUrl": "https://example.com",
+                            "ruleToc": {
+                                "chapterList": ".chapters a",
+                                "chapterName": "text",
+                                "chapterUrl": "href",
+                            },
+                            "ruleContent": {"content": "#content@" + reader},
+                        }
+                    )
+                )
+
+                self.assertEqual(
+                    "@css:#content@" + reader, result.rule["contentItems"]
+                )
+
+    def test_preserves_result_list_operations_and_interleave(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "result operations",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleExplore": {
+                        "bookList": ".primary[-1:0]%%.secondary[!0,2]",
+                        "name": ".name@ownText",
+                        "bookUrl": "a@href",
+                    },
+                    "ruleToc": {
+                        "chapterList": ".chapters a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertEqual(
+            "@css:.primary@[-1:0]%%@css:.secondary@[!0,2]",
+            result.rule["discoverList"],
+        )
+        self.assertEqual("@css:.name@ownText", result.rule["discoverName"])
+
+    def test_omits_legado_state_operations_instead_of_emitting_invalid_css(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "state operation",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleSearch": {
+                        "bookList": ".book",
+                        "name": 'class.bookname@text@put:{u:"a.0@href"}',
+                        "bookUrl": "a@href",
+                    },
+                    "ruleToc": {
+                        "chapterList": ".chapters a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertNotIn("searchName", result.rule)
+        self.assertIn(
+            "conversion.selector_unsupported",
+            {item.code for item in result.diagnostics},
+        )
 
 
 if __name__ == "__main__":
