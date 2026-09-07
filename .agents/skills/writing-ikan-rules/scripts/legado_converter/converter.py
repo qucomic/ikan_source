@@ -323,6 +323,20 @@ def _convert_css_node(value: str) -> Optional[str]:
     return _convert_position(node)
 
 
+def _join_css_nodes(tokens: List[str], nodes: List[str]) -> str:
+    combined: List[str] = []
+    for token, node in zip(tokens, nodes):
+        current_filter = re.fullmatch(
+            r"(?:class\.[\w-]+(?:\s+[\w-]+)*|id\.[\w-]+)",
+            token,
+        )
+        if combined and current_filter:
+            combined[-1] += node
+        else:
+            combined.append(node)
+    return " ".join(combined)
+
+
 def _convert_css_branch(value: str, *, list_selector: bool) -> Optional[str]:
     selector_rule, separator, replacement = value.partition("##")
     explicit_css = selector_rule.lstrip().lower().startswith("@css:")
@@ -367,7 +381,10 @@ def _convert_css_branch(value: str, *, list_selector: bool) -> Optional[str]:
         converted_nodes = [_convert_css_node(token) for token in tokens]
         if not converted_nodes or any(node is None for node in converted_nodes):
             return None
-        converted = " ".join(str(node) for node in converted_nodes)
+        converted = _join_css_nodes(
+            tokens,
+            [str(node) for node in converted_nodes],
+        )
         if operation:
             converted += "@" + operation
         converted += reader

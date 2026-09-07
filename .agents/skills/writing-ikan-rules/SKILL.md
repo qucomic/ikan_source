@@ -46,6 +46,7 @@ The converter never executes source JavaScript or performs network requests. `co
 For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters:
 
 - Legado `@` between selector nodes means a descendant step. Convert `.r@ul@li` to `.r ul li`; do not use `>` because the next node need not be a direct child. Ikan does not accept `.r@ul@li` as CSS.
+- Treat explicit `class.*` and `id.*` segments after an element as filters on that current element: `tag.h2@class.title@text` becomes `h2.title@text`, and `tag.a@id.detail@href` becomes `a#detail@href`. Do not emit `h2 .title` or `a #detail`. Plain element segments such as `.book_box@span` remain descendant queries.
 - A terminal Legado result index/range such as `a.0`, `li[-1:0]`, or `.item[!0,2]` becomes Ikan's result operation, for example `@css:a@[0]`, `@css:li@[-1:0]`, or `@css:.item@[!0,2]`.
 - Preserve terminal readers with Ikan syntax: `#content@ownText` becomes `@css:#content@ownText`, and `#content@p@textNodes` becomes `@css:#content p@textNodes`.
 - Preserve top-level Legado `%%` as Ikan's round-robin interleave operator. Do not rewrite it as `&&`.

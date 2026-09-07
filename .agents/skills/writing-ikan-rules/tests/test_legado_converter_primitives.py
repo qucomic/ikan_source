@@ -232,6 +232,32 @@ class LegadoConverterPrimitiveTests(unittest.TestCase):
         self.assertEqual(".title a@href", result.rule["searchResult"])
         self.assertEqual(".chapters li a", result.rule["chapterList"])
 
+    def test_merges_legado_class_and_id_filters_into_the_current_element(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "current element filters",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleExplore": {
+                        "bookList": "tag.article@class.book@class.featured",
+                        "name": "tag.h2@class.title@text",
+                        "bookUrl": "tag.a@id.detail@href",
+                    },
+                    "ruleToc": {
+                        "chapterList": ".chapters@tag.a",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertEqual("article.book.featured", result.rule["discoverList"])
+        self.assertEqual("h2.title@text", result.rule["discoverName"])
+        self.assertEqual("a#detail@href", result.rule["discoverResult"])
+        self.assertEqual(".chapters a", result.rule["chapterList"])
+
     def test_omits_legado_text_lookup_instead_of_emitting_invalid_css(self):
         result = convert_source(
             parsed(
