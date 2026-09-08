@@ -15,6 +15,36 @@ def fields_for(issues, level):
 
 
 class ValidateRuleTests(unittest.TestCase):
+    def test_validates_chapter_source_order_values(self):
+        base = {
+            "id": "chapter-order",
+            "name": "章节顺序",
+            "host": "https://example.com",
+            "contentType": "novel",
+            "enableSearch": False,
+            "enableDiscover": False,
+            "chapterList": ".chapters a",
+            "chapterName": "text",
+            "chapterResult": "href",
+            "contentItems": "#content@text",
+        }
+
+        for value in (None, "asc", "desc"):
+            with self.subTest(value=value):
+                rule = dict(base)
+                if value is not None:
+                    rule["chapterSourceOrder"] = value
+                self.assertNotIn(
+                    "chapterSourceOrder",
+                    fields_for(VALIDATOR.validate_document(rule), "error"),
+                )
+
+        invalid = dict(base, chapterSourceOrder="reverse")
+        self.assertIn(
+            "chapterSourceOrder",
+            fields_for(VALIDATOR.validate_document(invalid), "error"),
+        )
+
     def test_accepts_a_minimal_novel_rule_without_dialect_warnings(self):
         rule = {
             "id": "fiction-example",

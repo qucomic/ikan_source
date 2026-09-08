@@ -104,6 +104,7 @@
 | `chapterUrl` | 目录页地址。留空时直接使用作品详情地址。 |
 | `chapterNextUrl` | 目录下一页选择器或地址模板。 |
 | `chapterList` | 章节节点列表。 |
+| `chapterSourceOrder` | 站点完整目录的原始顺序：`asc`（默认，旧到新）或 `desc`（新到旧）。应用在目录加载完成后统一转换为正序阅读语义。 |
 | `chapterName` | 章节名称，必要。 |
 | `chapterResult` | 章节结果。可以返回地址、ID 或供 `contentUrl` 使用的结构化字符串；与 `chapterPayload` 至少填写一个。 |
 | `chapterPayload` | 章节内嵌数据。用于目录响应已经包含正文、图片列表或播放信息的情况；与 `chapterResult` 至少填写一个。 |
@@ -114,6 +115,9 @@
 | `chapterTime` | 保留/兼容字段；当前主目录映射不消费该值。 |
 
 开启多线路时，先用 `chapterRoads` 得到每条线路，再在当前线路内执行 `chapterRoadName` 和章节规则。
+
+`chapterSourceOrder` 描述整个目录（包括所有分页）的来源顺序。不要用
+`@css:...@[-1:0]` 代替它：该操作只反转当前一次选择器得到的节点，在分页目录中会变成“每页倒序、页面之间仍按原顺序”。
 
 ## 正文字段
 

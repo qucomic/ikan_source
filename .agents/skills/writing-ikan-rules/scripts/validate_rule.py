@@ -262,6 +262,18 @@ def validate_rule(rule: dict) -> List[Issue]:
             )
         )
 
+    chapter_source_order = rule.get("chapterSourceOrder")
+    if _present(rule, "chapterSourceOrder") and chapter_source_order not in {
+        "asc",
+        "desc",
+    }:
+        issues.append(
+            _error(
+                "chapterSourceOrder",
+                "chapterSourceOrder 只支持 asc 或 desc。",
+            )
+        )
+
     host = rule.get("host")
     if isinstance(host, str) and host.strip():
         parsed_host = urlparse(host)

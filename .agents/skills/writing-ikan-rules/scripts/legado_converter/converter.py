@@ -484,6 +484,20 @@ def _convert_address_or_selector(
     return _convert_address(source, field, diagnostics)
 
 
+def _extract_static_chapter_reverse(value: Any) -> Tuple[Any, bool]:
+    if not isinstance(value, str):
+        return value, False
+    source = value.strip()
+    if not source.startswith("-"):
+        return value, False
+    selector = source[1:].strip()
+    if not selector or selector.lower().startswith(("<js>", "@js:")):
+        return value, False
+    if "{{" in selector:
+        return value, False
+    return selector, True
+
+
 def _copy_metadata(source: Mapping[str, Any], diagnostics: List[Diagnostic]) -> Dict[str, Any]:
     identity = _identity(source)
     source_type = source.get("bookSourceType", 0)
@@ -788,9 +802,20 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
         if chapter_url:
             rule["chapterUrl"] = chapter_url
 
+    rule_toc = source.get("ruleToc")
+    converted_rule_toc = rule_toc
+    chapter_source_desc = False
+    if isinstance(rule_toc, Mapping):
+        chapter_list, chapter_source_desc = _extract_static_chapter_reverse(
+            rule_toc.get("chapterList")
+        )
+        if chapter_source_desc:
+            converted_rule_toc = dict(rule_toc)
+            converted_rule_toc["chapterList"] = chapter_list
+
     _map_selector_fields(
         rule,
-        source.get("ruleToc"),
+        converted_rule_toc,
         {
             "chapterList": "chapterList",
             "chapterName": "chapterName",
@@ -799,7 +824,8 @@ def convert_source(parsed: ParsedSource) -> ConversionResult:
         "ruleToc",
         diagnostics,
     )
-    rule_toc = source.get("ruleToc")
+    if chapter_source_desc and "chapterList" in rule:
+        rule["chapterSourceOrder"] = "desc"
     if isinstance(rule_toc, Mapping):
         next_url = _convert_address_or_selector(
             rule_toc.get("nextTocUrl"), "$.ruleToc.nextTocUrl", diagnostics

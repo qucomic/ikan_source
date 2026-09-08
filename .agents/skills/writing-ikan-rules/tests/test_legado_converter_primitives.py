@@ -232,6 +232,47 @@ class LegadoConverterPrimitiveTests(unittest.TestCase):
         self.assertEqual(".title a@href", result.rule["searchResult"])
         self.assertEqual(".chapters li a", result.rule["chapterList"])
 
+    def test_extracts_complete_chapter_reverse_from_static_list(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "descending chapters",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleToc": {
+                        "chapterList": "-class.chapter@li",
+                        "chapterName": "a@text",
+                        "chapterUrl": "a@href",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertEqual(".chapter li", result.rule["chapterList"])
+        self.assertEqual("desc", result.rule["chapterSourceOrder"])
+
+    def test_does_not_infer_complete_order_from_javascript_reverse(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "script reverse",
+                    "bookSourceUrl": "https://example.com",
+                    "ruleToc": {
+                        "chapterList": "@js:result.reverse()",
+                        "chapterName": "text",
+                        "chapterUrl": "href",
+                    },
+                    "ruleContent": {"content": "#content@text"},
+                }
+            )
+        )
+
+        self.assertNotIn("chapterSourceOrder", result.rule)
+        self.assertIn(
+            "conversion.selector_unsupported",
+            {item.code for item in result.diagnostics},
+        )
+
     def test_merges_legado_class_and_id_filters_into_the_current_element(self):
         result = convert_source(
             parsed(

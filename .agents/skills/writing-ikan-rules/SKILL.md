@@ -50,6 +50,8 @@ For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters
 - A terminal Legado result index/range such as `a.0`, `li[-1:0]`, or `.item[!0,2]` becomes Ikan's result operation, for example `@css:a@[0]`, `@css:li@[-1:0]`, or `@css:.item@[!0,2]`.
 - Preserve terminal readers with Ikan syntax: `#content@ownText` becomes `@css:#content@ownText`, and `#content@p@textNodes` becomes `@css:#content p@textNodes`.
 - Preserve top-level Legado `%%` as Ikan's round-robin interleave operator. Do not rewrite it as `&&`.
+- A single leading `-` on a static Legado `ruleToc.chapterList` means the complete source catalog is newest-first. Remove that marker from the converted selector and emit `"chapterSourceOrder": "desc"`. Do not infer this field from JavaScript such as `result.reverse()`; keep the script diagnostic for manual review.
+- `chapterSourceOrder` applies to the complete catalog across all directory pages. Ikan `@css:...@[-1:0]` reverses only one selector evaluation and is not equivalent for paginated catalogs.
 - Do not use `:nth-of-type(...)` for a terminal Legado result index: it filters by sibling structure and is not equivalent to indexing the complete query result. An index on an intermediate Legado selector step cannot use Ikan's terminal result operation; convert only when the structural form is demonstrably equivalent, otherwise emit a field diagnostic.
 
 ## Non-obvious Rules
@@ -63,6 +65,7 @@ For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters
 | Current list node value | When `*List` already selects the target element, use `text`, `href`, `src`, or another field name directly. Use `a@text`/`a@href` only when `a` is a descendant. Leading forms such as `@text` and `@href` are compatibility aliases, not canonical output. |
 | Embedded chapter content | Use `chapterPayload`; otherwise let `contentUrl` use `chapterResult`. |
 | Multi-road chapters | Set `enableMultiRoads: true` only when the directory contains independent road containers. `chapterRoads` selects each container; `chapterRoadName` and `chapterList` run relative to that container, then chapter value fields run relative to each `chapterList` item. |
+| Descending source catalog | Set `chapterSourceOrder: "desc"` when the complete source directory is newest-first, especially across pagination. Keep `chapterList` as the ordinary selector; do not reverse each page with `@[-1:0]`. |
 | Relative URLs | Prefer engine resolution against the current `baseUrl`/`host`; add JavaScript only when the API requires ID-to-URL construction. |
 | Dynamic page | Inspect scripts/network first. Prefer its usable HTTP/JSON API; treat WebView as the fallback and verify post-render DOM timing. |
 | Combined discover filters | Use `@@DiscoverRule:` with `rules` or `groups`. Its address expression is a restricted template evaluator, not general JavaScript: build the request directly with `host`, `params.join("&")`, `values`, `page`, and an optional simple request object. |
