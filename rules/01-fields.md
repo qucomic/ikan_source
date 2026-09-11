@@ -37,7 +37,7 @@
 
 | 字段 | 作用 |
 | --- | --- |
-| `userAgent` | 该规则 HTTP 请求的 User-Agent。 |
+| `userAgent` | 该规则 HTTP 请求的 User-Agent。可填写普通 UA 字符串；兼容旧规则时也可填写 JSON 对象字符串，作为该规则所有请求的全局请求头，请求对象中的同名 `headers` 会覆盖它。 |
 | `cookies` | 规则预置 Cookie 字符串，同时作为 JS 的 `cookie` 全局变量。响应 Cookie 会按规则和域名维护会话。 |
 | `loginUrl` | 登录入口地址。 |
 | `fetchMode` | `http` 或 `webview`。`webview` 用浏览器会话获取渲染后 HTML，可保留验证/Cookie。 |

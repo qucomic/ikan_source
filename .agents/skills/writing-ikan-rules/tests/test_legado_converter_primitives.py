@@ -38,6 +38,55 @@ class LegadoConverterPrimitiveTests(unittest.TestCase):
         self.assertRegex(first.rule["id"], r"^legado-[0-9a-f]{16}$")
         self.assertEqual(first.rule["id"], second.rule["id"])
 
+    def test_converts_static_legado_header_to_global_request_headers(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "static headers",
+                    "bookSourceUrl": "https://example.com",
+                    "header": '{"User-Agent":"Desktop UA","Referer":"https://example.com/"}',
+                }
+            )
+        )
+
+        self.assertEqual(
+            '{"User-Agent":"Desktop UA","Referer":"https://example.com/"}',
+            result.rule["userAgent"],
+        )
+
+    def test_extracts_fixed_user_agent_from_dynamic_legado_header(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "dynamic user agent",
+                    "bookSourceUrl": "https://example.com",
+                    "header": "@js:const ua = 'Mozilla/5.0 (iPhone) Mobile/15E148'; return {'User-Agent': ua, Referer: baseUrl};",
+                }
+            )
+        )
+
+        self.assertEqual(
+            "Mozilla/5.0 (iPhone) Mobile/15E148",
+            result.rule["userAgent"],
+        )
+
+    def test_reports_dynamic_header_without_fixed_user_agent(self):
+        result = convert_source(
+            parsed(
+                {
+                    "bookSourceName": "runtime user agent",
+                    "bookSourceUrl": "https://example.com",
+                    "header": "@js:return {'User-Agent': java.getWebViewUA()};",
+                }
+            )
+        )
+
+        self.assertNotIn("userAgent", result.rule)
+        self.assertIn(
+            "conversion.header_user_agent_dynamic",
+            {item.code for item in result.diagnostics},
+        )
+
     def test_maps_known_content_types_and_reports_unknown_values(self):
         expected = {0: "novel", 1: "audio", 2: "manga", 3: "mixed"}
         for source_type, content_type in expected.items():

@@ -498,6 +498,87 @@ def _extract_static_chapter_reverse(value: Any) -> Tuple[Any, bool]:
     return selector, True
 
 
+def _header_mapping(value: Any) -> Optional[Dict[str, str]]:
+    decoded = value
+    if isinstance(value, str):
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(decoded, Mapping):
+        return None
+    return {
+        str(key): str(item)
+        for key, item in decoded.items()
+        if isinstance(item, (str, int, float, bool))
+    }
+
+
+def _decode_js_string(quote: str, value: str) -> Optional[str]:
+    try:
+        if quote == '"':
+            return json.loads('"' + value + '"')
+        return re.sub(
+            r"\\(['\\nrt])",
+            lambda match: {"'": "'", "\\": "\\", "n": "\n", "r": "\r", "t": "\t"}[match.group(1)],
+            value,
+        )
+    except (KeyError, json.JSONDecodeError):
+        return None
+
+
+def _fixed_user_agent_from_javascript(value: str) -> Optional[str]:
+    assignment_pattern = re.compile(
+        r"(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)\s*=\s*"
+        r"(?P<quote>['\"])(?P<value>(?:\\.|(?!(?P=quote)).)*)(?P=quote)",
+        re.DOTALL,
+    )
+    assignments: Dict[str, str] = {}
+    for match in assignment_pattern.finditer(value):
+        decoded = _decode_js_string(match.group("quote"), match.group("value"))
+        if decoded is not None:
+            assignments[match.group("name")] = decoded
+
+    header_pattern = re.compile(
+        r"(?:['\"]User-Agent['\"]|User-Agent|userAgent)\s*:\s*"
+        r"(?:(?P<literal_quote>['\"])(?P<literal>(?:\\.|(?!(?P=literal_quote)).)*)(?P=literal_quote)|(?P<variable>[A-Za-z_$][\w$]*))",
+        re.IGNORECASE | re.DOTALL,
+    )
+    candidates = set()
+    for match in header_pattern.finditer(value):
+        if match.group("literal_quote"):
+            candidate = _decode_js_string(match.group("literal_quote"), match.group("literal"))
+        else:
+            candidate = assignments.get(match.group("variable"))
+        if candidate and re.search(
+            r"(?:Mozilla/|Dalvik/|okhttp/|Opera/|Chrome/|Safari/|Firefox/|Edg/|curl/)",
+            candidate,
+            re.IGNORECASE,
+        ):
+            candidates.add(candidate)
+    return next(iter(candidates)) if len(candidates) == 1 else None
+
+
+def _convert_global_header(value: Any, diagnostics: List[Diagnostic]) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    headers = _header_mapping(value)
+    if headers is not None:
+        return json.dumps(headers, ensure_ascii=False, separators=(",", ":")) if headers else None
+    if isinstance(value, str):
+        user_agent = _fixed_user_agent_from_javascript(value)
+        if user_agent:
+            return user_agent
+    _issue(
+        diagnostics,
+        "conversion.header_user_agent_dynamic",
+        "$.header",
+        "动态 header 无法静态确定唯一 User-Agent；已保留 Ikan 默认 User-Agent，请人工检查。",
+        value,
+    )
+    return None
+
+
 def _copy_metadata(source: Mapping[str, Any], diagnostics: List[Diagnostic]) -> Dict[str, Any]:
     identity = _identity(source)
     source_type = source.get("bookSourceType", 0)
@@ -525,6 +606,9 @@ def _copy_metadata(source: Mapping[str, Any], diagnostics: List[Diagnostic]) -> 
         rule["sort"] = source["customOrder"]
     if isinstance(source.get("lastUpdateTime"), int):
         rule["modifiedTime"] = source["lastUpdateTime"]
+    user_agent = _convert_global_header(source.get("header"), diagnostics)
+    if user_agent:
+        rule["userAgent"] = user_agent
     return rule
 
 

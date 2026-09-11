@@ -43,6 +43,8 @@ Report statuses mean:
 
 The converter never executes source JavaScript or performs network requests. `converted` is not proof that a website or API currently works; verify search, every discovery mode, directory, content, pagination, headers, authentication, and encryption against real responses before describing the rule as operational. Use the report's field-level diagnostics to finish `partial` candidates manually with this skill.
 
+For Legado's global `header`, preserve a static header object by serializing it into Ikan's `userAgent` compatibility field; Ikan interprets that JSON object string as global request headers. When `header` is JavaScript, never execute it during conversion. Extract only a unique fixed User-Agent literal (including a literal assigned to a simple local variable); keep that exact UA so its mobile or desktop identity is preserved. If the value depends on runtime APIs, branches, or computation, omit `userAgent` and emit `conversion.header_user_agent_dynamic` for manual review instead of guessing.
+
 For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters:
 
 - Legado `@` between selector nodes means a descendant step. Convert `.r@ul@li` to `.r ul li`; do not use `>` because the next node need not be a direct child. Ikan does not accept `.r@ul@li` as CSS.
