@@ -65,6 +65,7 @@ For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters
 | Search/discover value fields | Evaluate relative to the current `*List` item. |
 | Chapter value fields | Evaluate relative to the current `chapterList` item. |
 | Current list node value | When `*List` already selects the target element, use `text`, `href`, `src`, or another field name directly. Use `a@text`/`a@href` only when `a` is a descendant. Leading forms such as `@text` and `@href` are compatibility aliases, not canonical output. |
+| Direct children of current node | Use Ikan relative CSS such as `>a@text` or `@css:>h3>a@text`. A leading `>` scopes the first child combinator to the current list node; without it, `a@text` matches descendants at any depth. |
 | Embedded chapter content | Use `chapterPayload`; otherwise let `contentUrl` use `chapterResult`. |
 | Multi-road chapters | Set `enableMultiRoads: true` only when the directory contains independent road containers. `chapterRoads` selects each container; `chapterRoadName` and `chapterList` run relative to that container, then chapter value fields run relative to each `chapterList` item. |
 | Descending source catalog | Set `chapterSourceOrder: "desc"` when the complete source directory is newest-first, especially across pagination. Keep `chapterList` as the ordinary selector; do not reverse each page with `@[-1:0]`. |

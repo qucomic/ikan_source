@@ -68,6 +68,18 @@ CSS 节点内可以使用相对子选择器：
 .title>a@href 作为 searchResult
 ```
 
+当字段相对于当前列表节点执行时，选择器开头的 `>` 表示只从当前节点的直接子元素开始匹配，语义相当于以当前节点为作用域的 `:scope > ...`：
+
+```text
+>a@text
+>h3>a@text
+@css:>a@[0]@href
+```
+
+- `a@text` 会查询当前节点内任意深度的后代 `a`。
+- `>a@text` 只查询当前节点的直接子元素 `a`。
+- 前导 `>` 是 Ikan 的相对 CSS 扩展；选择器中间的 `>` 仍是普通 CSS 直接子组合符。
+
 ### 当前列表节点本身取值
 
 `searchName`、`discoverName`、`chapterName` 等字段相对当前列表节点执行。
