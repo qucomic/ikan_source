@@ -1,5 +1,6 @@
 .DS_Store
 .worktrees/
 __pycache__/
+docs/
 *.py[cod]
-rules/*.json
+rules/**/*.json
