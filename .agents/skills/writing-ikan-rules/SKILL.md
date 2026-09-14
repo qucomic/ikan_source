@@ -78,6 +78,9 @@ For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters
 | Images needing headers or transforms | Return structured image objects as documented in `rules/06-images-and-transforms.md`. |
 | CSS pseudo-classes | Use the structural pseudo-classes documented in `rules/03-selectors-and-values.md`. Do not assume full browser CSS4 support; the validator rejects unsupported pseudo-classes and pseudo-elements. |
 | CSS result operations | Use `@css:selector@[...]@reader`. Operations apply after the complete CSS query; they cannot be inserted between selector steps. |
+| XPath | Use only the documented Ikan XPath subset in `rules/03-selectors-and-values.md`; do not infer support for arbitrary W3C XPath axes, functions, or predicates. |
+| Pagination selector results | `searchNextUrl`, `discoverNextUrl`, `chapterNextUrl`, and `contentNextUrl` use the first non-empty parsed URL. Make the selector target the real next-page link rather than both previous and next links. |
+| Regex replacement in JSON | Use `rule##pattern##replacement##true`. JSON-escape regex backslashes, for example `\\.` in the JSON source for a literal dot, and write `@` directly—never `\@`. |
 
 ## Output Contract
 
@@ -148,7 +151,7 @@ When `enableMultiRoads` is `true`, always provide both `chapterRoads` and `chapt
 
 - Serializing a request object into a plain string instead of returning it from `@js:`.
 - Using `${keyword}` in an ordinary address or `$keyword` inside JavaScript.
-- Enabling a stage while omitting its URL/list/name/result fields.
+- Omitting a stage's actual required outputs: enabled search/discover need their URL, list, name, and result fields; chapters need `chapterList`, `chapterName`, and at least one of `chapterResult` or `chapterPayload`;正文阅读需要 `contentItems`. `chapterUrl` and `contentUrl` may be empty when the upstream result is already the requestable page.
 - Treating `adUrl` as an image address.
 - Guessing selectors from a URL without inspecting a response.
 - Writing `@text`/`@href` when the current `*List` item is already the target element; generate `text`/`href` instead.

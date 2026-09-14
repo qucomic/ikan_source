@@ -158,15 +158,25 @@ tag.img.0@src
 
 ```text
 //h1/text()
-//a/@href
+//a[contains(@class, "chapter")]/@href
 //*[@class="title"]/text()
 //*[@id="content"]/html()
+/html/body/main/div[2]/only()
+(//div[contains(@class, "item")])[2]/a/text()
+//a[contains(@href, "chapter") and contains(normalize-space(.), "下一章")]/@href
 ```
 
-- `/text()` 取文本。
-- `/@href` 取属性。
-- `/html()` 转换为可读文本。
-- XPath 支持谓词、位置与常见函数，但应尽量使用结构稳定的属性，避免过度依赖绝对层级。
+当前引擎实现的是规则解析所需的 XPath 子集，不是完整的 W3C XPath 引擎。明确支持：
+
+- `/` 子级轴、`//` 后代轴，以及 `/html/body/...` 绝对路径；
+- 节点位置 `[2]` 和分组后位置 `(//div)[2]`；
+- 属性谓词，如 `[@id="content"]`、`[@data-type="book"]`；
+- 属性包含 `contains(@class, "item")`；
+- 文本包含 `contains(normalize-space(.), "下一章")`；
+- 谓词内的 `and`、`or` 组合；
+- `/text()` 取文本、`/@href` 取属性、`/html()` 转换为可读文本、`/only()` 使用兼容的节点内层读取方式。
+
+不要猜测任意 XPath 轴、函数或复杂谓词也能工作。超出以上范围时，改用 CSS 或 `@js:`，并用真实响应验证。
 
 ## JSONPath
 
@@ -311,6 +321,16 @@ text##book##novel##true
 - 最后一段 `true` 表示只替换第一个；`false` 或省略表示全部替换。
 - 替换文本支持 `$1` 和 `${1}` 捕获组。
 - `##` 会作为顶层语法解析，正则非常复杂时建议改用 JS。
+
+写入 JSON 时，正则中的反斜杠还要再经过一次 JSON 转义。例如过滤
+`.txtnav@html` 结果中的 `dingdianzww.org`：
+
+```json
+"contentItems": ".txtnav@html##dingdianzww\\.org"
+```
+
+JSON 解码后，实际正则是 `dingdianzww\.org`。`@` 是 Ikan 规则分隔符，直接写
+`@` 即可；不要写成 `\@`，后者不是合法的 JSON 转义。
 
 ## 列表与字符串的差别
 

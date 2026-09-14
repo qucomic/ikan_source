@@ -108,7 +108,7 @@ JSON.parse(result)
 
 ## 有列表节点，但页面仍说没有内容
 
-作品列表项需要 `name` 和 `result` 同时有效；章节项需要 `chapterName` 和 `chapterResult` 同时有效。
+作品列表项需要 `name` 和 `result` 同时有效；章节项需要 `chapterName`，并且 `chapterResult` 或 `chapterPayload` 至少有一个有效。
 
 单独测试：
 
@@ -205,4 +205,3 @@ searchList -> 应有 N 个节点
 - 地址中出现整段 JS 或 `%40js`：地址评估阶段问题。
 - JS stack trace 指向 `analyzer.js`：查看 JS 行号、作用域、Promise 和返回类型。
 - 图片 URL 可访问但图片解码失败：检查它是否是加密密文、HTML 防盗链响应或 MIME 错误。
-

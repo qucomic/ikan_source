@@ -26,6 +26,8 @@
 
 当前页是 `https://example.com/search/index.html` 时，下一页为 `https://example.com/search/page-2.html`。
 
+如果选择器返回多个值，引擎只使用第一个非空 URL。选择器应精确命中“下一页”，不要同时命中“上一页”等链接。
+
 `searchNextUrl` 的 `@js:` 属于页内取值规则，应返回下一页 URL 字符串，不要返回请求对象。
 
 ### 方式三：`searchNextUrl` 是模板
@@ -270,15 +272,25 @@
 
 但如果网站在最后一页仍对任意页码返回不同 URL 的重复内容，纯 `$page` 模板无法自动知道何时结束。优先使用页面真实“下一页”链接。
 
+当 `chapterNextUrl` 是 CSS、XPath、JSONPath 或 `@js:` 取值规则时，它针对当前目录页响应执行；相对链接以当前目录分页地址为 `baseUrl` 解析。返回多个值时只使用第一个非空 URL。
+
 ## 正文内部分页
 
 用于“一章被分成 1_2.html、1_3.html”的网站：
+
+普通页面可以直接用 CSS 读取下一页：
+
+```json
+"contentNextUrl": "a.next@href"
+```
+
+需要根据链接文字或页面结构判断时可以使用 JavaScript：
 
 ```json
 "contentNextUrl": "@js:\n(() => {\n  const m = result.match(/href=\"([^\"]+)\"[^>]*>下一页/);\n  return m ? m[1] : null;\n})()"
 ```
 
-此处 JS 的 `result` 是当前正文分页的 HTML，`baseUrl` 是当前分页地址，`page` 是即将请求的页码。
+CSS、XPath、JSONPath 和 `@js:` 取值规则都针对当前正文分页响应执行。相对链接以当前分页地址为 `baseUrl` 解析；若返回多个值，只使用第一个非空 URL。此处 JS 的 `result` 是当前正文分页的 HTML，`baseUrl` 是当前分页地址，`page` 是即将请求的页码。
 
 当前实现的保护条件：
 
