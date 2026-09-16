@@ -17,11 +17,7 @@
 
 ## 使用演示
 
-[观看 App 使用演示视频](screenshots/de
-
 https://github.com/user-attachments/assets/117ab3ae-7a68-4127-ab8f-c14c652375f4
-
-mo.mp4)
 
 演示视频展示爱看 App 的实际操作，帮助你直观了解应用界面与使用方式。首次使用时，可结合下方项目截图和规则手册了解相关功能；应用中的内容需要通过规则接入。
 
