@@ -4,16 +4,23 @@
 
 [下载最新版本](https://github.com/qucomic/ikan_source/releases/latest) · [使用演示](#使用演示) · [规则手册](rules/README.md) · [规则示例](#规则示例) · [Agent Skill](#使用-ai-智能体辅助编写规则)
 
-## 下载 APK
+## 下载安装
 
-请前往 [GitHub Releases](https://github.com/qucomic/ikan_source/releases/latest) 下载最新版本。
+请前往 [GitHub Releases](https://github.com/qucomic/ikan_source/releases/latest) 下载最新版本。根据使用的平台选择对应安装包：
 
-[直接下载最新版 APK](https://github.com/qucomic/ikan_source/releases/latest/download/ikan.apk)
+| 平台 | 安装包 | 下载与安装 |
+| --- | --- | --- |
+| Android | APK | [直接下载最新版 APK](https://github.com/qucomic/ikan_source/releases/latest/download/ikan.apk)，下载后按系统提示安装。 |
+| macOS | ZIP 压缩包 | [直接下载最新版macOS ZIP](https://github.com/qucomic/ikan_source/releases/latest/download/ikan-macos.zip)，在最新版 Release 的 Assets 中下载 macOS ZIP，解压后打开应用；也可以将应用拖入“应用程序”文件夹。 |
+<!-- | Windows | ZIP 压缩包 | 在最新版 Release 的 Assets 中下载 Windows ZIP，完整解压后运行其中的应用程序。请勿直接在压缩包内运行。 | -->
 
 ### 运行要求
 
-- Android 7.0（API 24）及以上版本
-- 安装第三方 APK 时，可能需要根据系统提示允许“安装未知应用”
+- Android：Android 7.0（API 24）及以上版本。安装第三方 APK 时，可能需要根据系统提示允许“安装未知应用”。
+- macOS：首次打开时，如果系统提示应用来自未认证的开发者，请在“系统设置 → 隐私与安全性”中确认后重新打开。
+<!-- - Windows：下载完成后先解压全部文件，并保留压缩包内原有的目录结构。如果 Windows 安全提示阻止运行，请确认安装包来自本仓库的 Release 页面后再选择继续。 -->
+
+> macOS 与 Windows 安装包均为 ZIP 压缩文件。不同平台的文件不能混用；如 Release 中提供多个架构版本，请根据设备和 Release 说明选择对应文件。
 
 ## 使用演示
 
@@ -167,4 +174,4 @@ python3 .agents/skills/writing-ikan-rules/scripts/validate_rule.py rules/example
 
 ## 关于本仓库
 
-本仓库用于发布项目介绍、规则文档、应用截图及 APK 安装包，应用源代码暂不公开。
+本仓库用于发布项目介绍、规则文档、应用截图，以及 Android、macOS 和 Windows 安装包，应用源代码暂不公开。
