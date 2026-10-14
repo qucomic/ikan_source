@@ -162,6 +162,10 @@ python3 .agents/skills/writing-ikan-rules/scripts/validate_rule.py rules/example
 
 验证器用于检查字段、选择器和已知的不兼容写法。验证通过不代表目标网站一定可用，还需要在爱看 App 中实际测试搜索、分类、目录、正文、分页和图片加载。
 
+## 社区圈子
+[Telegram群组](https://t.me/ikantgqun)
+有什么问题进群组讨论，可帮写规则
+
 ## 使用声明
 
 爱看仅提供规则运行和内容阅读能力，不提供或存储第三方内容。本仓库中的规则和广告示例仅用于说明配置格式。

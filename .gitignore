@@ -4,3 +4,4 @@ __pycache__/
 docs/
 *.py[cod]
 rules/**/*.json
+marketing/
