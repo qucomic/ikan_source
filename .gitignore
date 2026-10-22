@@ -5,3 +5,4 @@ docs/
 *.py[cod]
 rules/**/*.json
 marketing/
+tests/
