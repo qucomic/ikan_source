@@ -11,8 +11,8 @@
 | 平台 | 安装包 | 下载与安装 |
 | --- | --- | --- |
 | Android | APK | [直接下载最新版 APK](https://github.com/qucomic/ikan_source/releases/latest/download/ikan.apk)，下载后按系统提示安装。 |
-| macOS | ZIP 压缩包 | [直接下载最新版macOS ZIP](https://github.com/qucomic/ikan_source/releases/latest/download/ikan-macos.zip)，在最新版 Release 的 Assets 中下载 macOS ZIP，解压后打开应用；也可以将应用拖入“应用程序”文件夹。 |
-| Windows | ZIP 压缩包 | [直接下载最新版widows ZIP](https://github.com/qucomic/ikan_source/releases/latest/download/ikan-windows.zip)，在最新版 Release 的 Assets 中下载 Windows ZIP，完整解压后运行其中的应用程序。请勿直接在压缩包内运行。 |
+| macOS | ZIP 压缩包 | [直接下载最新版macOS ZIP](https://github.com/qucomic/ikan_source/releases/download/v2.0.1/ikan-macos.zip)，在最新版 Release 的 Assets 中下载 macOS ZIP，解压后打开应用；也可以将应用拖入“应用程序”文件夹。 |
+| Windows | ZIP 压缩包 | [直接下载最新版widows ZIP](https://github.com/qucomic/ikan_source/releases/download/v2.0.1/ikan-windows.zip)，在最新版 Release 的 Assets 中下载 Windows ZIP，完整解压后运行其中的应用程序。请勿直接在压缩包内运行。 |
 
 ### 运行要求
 
