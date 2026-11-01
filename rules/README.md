@@ -88,3 +88,11 @@ $.data.name
 
 - **推荐**：当前类型化规则引擎的清晰写法，例如结构化请求对象、结构化图片对象。
 - **旧版兼容**：为导入 ESO/Ikan 旧规则保留的写法，例如 `@headers{...}` 图片后缀、`searchKey`、`searchPage`。新规则可以使用，但不建议继续扩展这类字符串协议。
+
+
+## 登录与访问要求
+
+需要登录的来源请阅读 [统一认证配置](09-authentication.md)。新规则使用 `auth`；验证码网站可用 `webview` + `cookieMode: "all"`，通过 `requiredFor` 声明哪些操作需要登录。实际凭据在客户端独立保存，章节 `chapterLock` 保持原语义。
+
+
+备用域名配置参见 [backupHosts：并发选址与认证限制](10-backup-hosts.md)。

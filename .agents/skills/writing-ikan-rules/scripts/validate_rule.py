@@ -248,8 +248,132 @@ def validate_document(document: Any) -> List[Issue]:
     return validate_rule(document)
 
 
+
+def _https_origin(value, root=False):
+    if not isinstance(value, str):
+        return None
+    try:
+        url = urlparse(value)
+        if url.scheme != "https" or not url.hostname or url.username or url.password:
+            return None
+        if root and (url.path not in ("", "/") or url.query or url.fragment):
+            return None
+        port = url.port
+        return "https://" + url.hostname.lower() + (":" + str(port) if port and port != 443 else "")
+    except ValueError:
+        return None
+
+
+def _validate_auth(rule, issues):
+    if rule.get("loginUrl"):
+        issues.append(_warning("loginUrl", "旧字段仅供导入兼容；新规则请使用 auth.entries 的 webview 入口。"))
+    if rule.get("cookies"):
+        issues.append(_error("cookies", "实际 Cookie 不得写入分享规则，请通过客户端登录管理保存。"))
+    user_agent = rule.get("userAgent")
+    if isinstance(user_agent, str) and user_agent.lstrip().startswith("{"):
+        try:
+            headers = json.loads(user_agent)
+        except (ValueError, TypeError):
+            headers = {}
+        if isinstance(headers, dict) and any(str(k).lower() in {"cookie", "authorization", "proxy-authorization", "x-auth-token", "x-access-token"} and v for k, v in headers.items()):
+            issues.append(_error("userAgent", "全局请求头含实际认证凭据；请改用 auth.inject 模板或网页登录会话。"))
+    auth = rule.get("auth")
+    if auth is None or auth == {}:
+        return
+    if not isinstance(auth, dict):
+        issues.append(_error("auth", "auth 必须是 JSON 对象。"))
+        return
+    if type(auth.get("version")) is not int or auth["version"] != 1:
+        issues.append(_error("auth.version", "当前仅支持整数版本 1。"))
+    if "allowHostSwitch" in auth and type(auth["allowHostSwitch"]) is not bool:
+        issues.append(_error("auth.allowHostSwitch", "必须为布尔值；仅在确认镜像共享认证并声明 origins 后启用。"))
+    required = auth.get("requiredFor", [])
+    allowed = {"all", "discover", "search", "detail", "chapter", "content"}
+    if not isinstance(required, list) or any(not isinstance(op, str) or op not in allowed for op in required):
+        issues.append(_error("auth.requiredFor", "使用操作数组：all、discover、search、detail、chapter、content。chapterLock 不参与此声明。"))
+    entries = auth.get("entries", [])
+    if not isinstance(entries, list):
+        issues.append(_error("auth.entries", "entries 必须是登录入口数组。"))
+        entries = []
+    if required and not entries and not rule.get("loginUrl"):
+        issues.append(_error("auth.entries", "声明了登录要求但没有登录入口。"))
+    for index, entry in enumerate(entries):
+        field = "auth.entries[{}]".format(index)
+        if not isinstance(entry, dict):
+            issues.append(_error(field, "入口必须是 JSON 对象。"))
+            continue
+        if not isinstance(entry.get("type"), str) or entry["type"] not in {"api", "manual", "webview"}:
+            issues.append(_error(field + ".type", "入口类型仅支持 api、manual、webview。"))
+        fields = entry.get("fields", [])
+        if not isinstance(fields, list):
+            issues.append(_error(field + ".fields", "登录表单 fields 必须是数组。"))
+            fields = []
+        for field_index, form_field in enumerate(fields):
+            if isinstance(form_field, dict) and "defaultValue" in form_field:
+                if entry.get("type") != "api" or not isinstance(form_field["defaultValue"], str):
+                    issues.append(_error(field + ".fields[{}].defaultValue".format(field_index), "defaultValue 仅用于 API 表单的字符串公开初始值，不用于网页登录或手动凭据。"))
+        if entry.get("type") == "webview":
+            origins = entry.get("origins", [])
+            origin_set = {_https_origin(v, root=True) for v in origins} if isinstance(origins, list) else {None}
+            if not origins or None in origin_set or _https_origin(entry.get("url")) not in origin_set:
+                issues.append(_error(field, "网页登录 url 必须属于明确允许的 HTTPS origins。"))
+        if "cookieMode" in entry:
+            if entry.get("type") != "webview" or entry["cookieMode"] != "all" or entry.get("extract"):
+                issues.append(_error(field + ".cookieMode", "cookieMode: all 仅用于网页登录，不能同时配置 extract。"))
+    for key in ("prepare", "inject"):
+        if key in auth and (not isinstance(auth[key], list) or any(not isinstance(v, dict) for v in auth[key])):
+            issues.append(_error("auth." + key, "必须是 JSON 对象数组。"))
+    if isinstance(auth.get("inject"), list):
+        for index, injection in enumerate(auth["inject"]):
+            if not isinstance(injection, dict):
+                continue
+            origins = injection.get("origins", [])
+            field = "auth.inject[{}]".format(index)
+            if not isinstance(origins, list) or not origins or any(_https_origin(v, root=True) is None for v in origins):
+                issues.append(_error(field + ".origins", "凭据只能注入明确允许的 HTTPS 来源。"))
+            template = injection.get("template")
+            if not isinstance(template, str) or not re.search(r"\{\{[A-Za-z0-9_]+\}\}", template):
+                issues.append(_error(field + ".template", "使用 {{凭据名}} 引用，不要写入实际 Token/Cookie。"))
+    for key in ("check", "expired", "refresh", "logout"):
+        if key in auth and not isinstance(auth[key], dict):
+            issues.append(_error("auth." + key, "必须是 JSON 对象。"))
+    registration = auth.get("registration")
+    if registration is not None:
+        origins = registration.get("origins", []) if isinstance(registration, dict) else []
+        origin_set = {_https_origin(v, root=True) for v in origins} if isinstance(origins, list) else {None}
+        if not isinstance(registration, dict) or not origins or None in origin_set or _https_origin(registration.get("url")) not in origin_set:
+            issues.append(_error("auth.registration", "注册 url 必须属于明确允许的 HTTPS origins；不要猜测注册链接。"))
+
+
+def _validate_backup_hosts(rule, issues):
+    values = rule.get("backupHosts")
+    if values is None:
+        return
+    if not isinstance(values, list):
+        issues.append(_error("backupHosts", "backupHosts 必须是来源数组。"))
+        return
+    primary = urlparse(rule.get("host", "")) if isinstance(rule.get("host"), str) else None
+    if values and (primary is None or primary.scheme not in {"http", "https"} or not primary.hostname or primary.username or primary.password):
+        issues.append(_error("host", "配置备用域名前需要有效的主域名。"))
+    unique = set()
+    for value in values:
+        try:
+            url = urlparse(value) if isinstance(value, str) else None
+            if url is None or url.scheme not in {"http", "https"} or not url.hostname or url.username or url.password or url.path not in ("", "/") or url.query or url.fragment or (primary and primary.scheme == "https" and url.scheme != "https"):
+                raise ValueError()
+            origin = (url.scheme, url.hostname.lower(), url.port or (443 if url.scheme == "https" else 80))
+            primary_origin = (primary.scheme, primary.hostname.lower(), primary.port or (443 if primary.scheme == "https" else 80)) if primary and primary.hostname else None
+            if origin != primary_origin:
+                unique.add(origin)
+        except (ValueError, TypeError):
+            issues.append(_error("backupHosts", "备用域名必须是完整 HTTP(S) 来源，不含路径、参数、账号或片段；HTTPS 主站不能降级。"))
+    if len(unique) > 8:
+        issues.append(_error("backupHosts", "最多配置 8 个备用域名。"))
+
 def validate_rule(rule: dict) -> List[Issue]:
     issues: List[Issue] = []
+    _validate_auth(rule, issues)
+    _validate_backup_hosts(rule, issues)
 
     _require(rule, ["id", "name", "host", "contentType"], issues)
 

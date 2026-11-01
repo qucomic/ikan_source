@@ -10,6 +10,7 @@
 | `name` | String | 规则显示名称，必填。 |
 | `author` | String | 规则作者。 |
 | `host` | String | 站点根地址，也是相对 URL 的基础之一。建议写完整 `https://...`。 |
+| `backupHosts` | 同站镜像来源数组，最多 8 个。支持并发探测、缓存、故障重选和手动固定；不会自动共享登录态。详见 [备用域名](10-backup-hosts.md)。 |
 | `icon` | String | 规则图标 URL，可以是相对地址。 |
 | `group` | String | 规则分组。 |
 | `contentType` | int/String | 内容类型，见下表。 |
@@ -38,8 +39,9 @@
 | 字段 | 作用 |
 | --- | --- |
 | `userAgent` | 该规则 HTTP 请求的 User-Agent。可填写普通 UA 字符串；兼容旧规则时也可填写 JSON 对象字符串，作为该规则所有请求的全局请求头，请求对象中的同名 `headers` 会覆盖它。 |
-| `cookies` | 规则预置 Cookie 字符串，同时作为 JS 的 `cookie` 全局变量。响应 Cookie 会按规则和域名维护会话。 |
-| `loginUrl` | 登录入口地址。 |
+| `cookies` | 仅兼容旧规则；实际 Cookie 在客户端登录管理中保存，普通编辑页和分享规则不再使用。 |
+| `auth` | 统一认证配置；网页登录地址配置在 `entries` 的 `webview` 入口。详见 [认证配置](09-authentication.md)。 |
+| `loginUrl` | 旧字段，仅导入兼容；自动归入 `auth.entries`，新规则不再生成。 |
 | `fetchMode` | `http` 或 `webview`。`webview` 用浏览器会话获取渲染后 HTML，可保留验证/Cookie。 |
 | `useCryptoJS` | 为 `true` 时预加载内置 CryptoJS。常见可执行字段中出现 `CryptoJS` 时也会自动检测，但新规则只要依赖 CryptoJS 就应明确设为 `true`。 |
 | `loadJs` | 当规则会话初始化时执行一次的 JS，用于定义公共函数和常量。 |

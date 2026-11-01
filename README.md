@@ -122,6 +122,7 @@ https://github.com/user-attachments/assets/117ab3ae-7a68-4127-ab8f-c14c652375f4
 7. [图片请求、AES 解密与命名 JS](rules/06-images-and-transforms.md)
 8. [完整规则示例](rules/07-examples.md)
 9. [常见错误与排查](rules/08-troubleshooting.md)
+10. [统一认证与登录范围](rules/09-authentication.md)
 
 ## 使用 AI 智能体辅助编写规则
 
@@ -179,3 +180,6 @@ python3 .agents/skills/writing-ikan-rules/scripts/validate_rule.py rules/example
 ## 关于本仓库
 
 本仓库用于发布项目介绍、规则文档、应用截图，以及 Android、macOS 和 Windows 安装包，应用源代码暂不公开。
+
+
+备用域名配置参见 [backupHosts：并发选址与认证限制](rules/10-backup-hosts.md)。

@@ -13,6 +13,8 @@ Create one ordinary JSON rule object for the current Ikan engine. Never encode i
 2. Read only the repository references relevant to the task:
    - Start with [`rules/README.md`](../../../rules/README.md) and [`rules/01-fields.md`](../../../rules/01-fields.md).
    - For requests, selectors, or JavaScript, read [`02-address-and-request.md`](../../../rules/02-address-and-request.md), [`03-selectors-and-values.md`](../../../rules/03-selectors-and-values.md), or [`04-javascript.md`](../../../rules/04-javascript.md).
+   - For same-site mirrors or host failover, read [`10-backup-hosts.md`](../../../rules/10-backup-hosts.md).
+   - For login, Cookie/Token, registration, or protected operations, read [`09-authentication.md`](../../../rules/09-authentication.md).
    - Read pagination, images, examples, or troubleshooting references only when those features apply. For combined discover filters, read [`05-pagination-and-session.md`](../../../rules/05-pagination-and-session.md) before drafting `discoverUrl`.
 3. For client-rendered or hash-route pages, inspect page scripts and network requests before choosing a fetch mode. Use an accessible underlying HTTP/JSON API when available, including reproducing required signing or encryption with `@js:`/`loadJs`. Use `webview` only when browser state, login, verification, or an unusable API makes direct HTTP impractical; then verify the captured HTML contains the target nodes after asynchronous rendering.
 4. Map the flow: search/discover result → directory request → chapter result/payload → content. In the directory response, check whether chapters are partitioned into independent source, route, quality, or play-line containers before deciding `enableMultiRoads`.
@@ -43,7 +45,7 @@ Report statuses mean:
 
 The converter never executes source JavaScript or performs network requests. `converted` is not proof that a website or API currently works; verify search, every discovery mode, directory, content, pagination, headers, authentication, and encryption against real responses before describing the rule as operational. Use the report's field-level diagnostics to finish `partial` candidates manually with this skill.
 
-For Legado's global `header`, preserve a static header object by serializing it into Ikan's `userAgent` compatibility field; Ikan interprets that JSON object string as global request headers. When `header` is JavaScript, never execute it during conversion. Extract only a unique fixed User-Agent literal (including a literal assigned to a simple local variable); keep that exact UA so its mobile or desktop identity is preserved. If the value depends on runtime APIs, branches, or computation, omit `userAgent` and emit `conversion.header_user_agent_dynamic` for manual review instead of guessing.
+For Legado's global `header`, preserve static non-credential headers by serializing them into Ikan's `userAgent` compatibility field; Ikan interprets that JSON object string as global request headers. When `header` is JavaScript, never execute it during conversion. Extract only a unique fixed User-Agent literal (including a literal assigned to a simple local variable); keep that exact UA so its mobile or desktop identity is preserved. If the value depends on runtime APIs, branches, or computation, omit `userAgent` and emit `conversion.header_user_agent_dynamic` for manual review instead of guessing.
 
 For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters:
 
@@ -55,6 +57,29 @@ For Legado CSS/JSoup selectors, preserve semantics instead of copying delimiters
 - A single leading `-` on a static Legado `ruleToc.chapterList` means the complete source catalog is newest-first. Remove that marker from the converted selector and emit `"chapterSourceOrder": "desc"`. Do not infer this field from JavaScript such as `result.reverse()`; keep the script diagnostic for manual review.
 - `chapterSourceOrder` applies to the complete catalog across all directory pages. Ikan `@css:...@[-1:0]` reverses only one selector evaluation and is not equivalent for paginated catalogs.
 - Do not use `:nth-of-type(...)` for a terminal Legado result index: it filters by sibling structure and is not equivalent to indexing the complete query result. An index on an intermediate Legado selector step cannot use Ikan's terminal result operation; convert only when the structural form is demonstrably equivalent, otherwise emit a field diagnostic.
+
+## Authentication contract
+
+- New rules use `auth.version: 1`; do not emit top-level `loginUrl` or actual `cookies`. Old URLs are import compatibility only. Existing explicit `auth.entries` takes precedence.
+- For CAPTCHA/browser login, use `entries: [{id, type: "webview", url, origins, cookieMode: "all"}]` with real HTTPS URLs and exact allowed origins. The client saves the full webpage Cookie session separately. Do not combine `cookieMode: "all"` with `extract`. For named Cookie/localStorage/sessionStorage extraction, use ordinary webview `extract` instead.
+- For API login, use native `fields`, `request`, `success`, `extract` and scoped `inject`. JSON is the default; use entry `encoding: "form"` for form submission. Preserve explicit Content-Type values literally, including charset case. Use request signing in `loadJs`; do not interpolate account/password into JS source.
+- Declare `requiredFor` only for verified protected operations: `discover`, `search`, `detail`, `chapter`, `content`, or `all`. A site requiring search login does not imply all pages require login. Omit uncertain declarations and document the pending verification. Leave `chapterLock` unchanged; do not infer VIP entitlement or login failure from it or generic HTTP 403.
+- `registration: {url, origins}` is optional; use the real registration page, never invent it. Login-required UI and successful-login retry are client behavior, not rule JS.
+- Never write personal account/password/Token/Cookie into output, conversion reports, `userAgent` header JSON, or test fixtures. Exception: when the author explicitly intends to publish a shared account, API `fields[].defaultValue` may contain its public initial values; explain that they ship in plain rule JSON and `secret` only obscures the input. Use placeholders in tests; actual credentials belong in client login management. Public protocol signing constants are not a user's login session.
+- For explicitly requested shared accounts, use string `defaultValue` on API fields only. Defaults prefill on first use; saved personal forms/settings win as a whole, so never mix a personal account with a shared password. Clearing input or disabling memory must not cause immediate refill. The client still requires a login click; do not add automatic login or WebView password injection. Do not infer that an account is shareable or copy saved Legado credentials automatically.
+- The batch converter migrates only static HTTPS login URLs. Legado `loginUi`, `loginCheckJs`, Java CAPTCHA calls, and scripted `loginUrl` require manual protocol inspection; do not copy or execute them, guess endpoints, or label the login flow verified.
+
+
+## Backup hosts
+
+Use optional `backupHosts: ["https://mirror.example.net"]` only for verified same-site mirrors with identical paths, work/chapter IDs and resource bytes. Similar HTML templates alone are not enough; use separate rules for independent sites. Do not guess mirrors.
+
+Provide at most 8 unique absolute HTTP(S) origins, without paths/query/fragments/user-info. HTTPS primary hosts cannot fall back to HTTP. Do not add IP/Host overrides or rewrite CDN/external API URLs.
+
+Rules with auth default to the primary host, with no automatic failover. Only set `auth.allowHostSwitch: true` after verifying a shared authentication system, and explicitly authorize mirror origins in auth.inject or webview entries; both are required. Cookie sessions are not copied across domains. Protected rules show stable line numbers in the line picker. Rules without auth race credential-free lightweight probes, caches the first healthy response during active use, coalesces selection, and reselects once after read-only network/gateway failures. Public JSON/form POST queries can be sent once, never replayed. Unknown/private bodies and existing credentials require explicit per-origin authorization. Login, CAPTCHA, permission denial, rate limits and empty parsing do not cause business retries. Homepage checks do not validate selectors or prove equivalent content; blocked checks preserve an original-address attempt and manual selection is available.
+
+`backupHosts` never expands `auth.inject.origins`, Cookie scope, login URLs or registration origins. Do not copy primary credentials to mirrors. Domain-dependent signatures and per-origin login entries still need verification. Manual pin/current-host status are client preferences, not extra rule fields. Keep the public output as one ordinary JSON object.
+
 
 ## Non-obvious Rules
 

@@ -6,7 +6,7 @@ import re
 import unicodedata
 from collections.abc import Mapping
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl, urlparse, urljoin
 
 from .capability_scanner import redact_excerpt, scan_capabilities
 from .models import ConversionResult, Diagnostic, ParsedSource
@@ -564,6 +564,10 @@ def _convert_global_header(value: Any, diagnostics: List[Diagnostic]) -> Optiona
         return None
     headers = _header_mapping(value)
     if headers is not None:
+        sensitive = {"cookie", "authorization", "proxy-authorization", "x-auth-token", "x-access-token"}
+        if any(key.lower() in sensitive for key in headers):
+            _issue(diagnostics, "conversion.auth_headers_removed", "$.header", "已移除实际认证请求头；请通过 auth 登录并注入凭据。", "[REDACTED]")
+            headers = {key: value for key, value in headers.items() if key.lower() not in sensitive}
         return json.dumps(headers, ensure_ascii=False, separators=(",", ":")) if headers else None
     if isinstance(value, str):
         user_agent = _fixed_user_agent_from_javascript(value)
@@ -609,6 +613,16 @@ def _copy_metadata(source: Mapping[str, Any], diagnostics: List[Diagnostic]) -> 
     user_agent = _convert_global_header(source.get("header"), diagnostics)
     if user_agent:
         rule["userAgent"] = user_agent
+    login = source.get("loginUrl")
+    if isinstance(login, str) and login.strip():
+        value = login.strip()
+        if value.startswith(("https://", "/")) and not re.search(r"[\s{}<>]", value):
+            url = urljoin(rule["host"], value)
+            parsed_url = urlparse(url)
+            if parsed_url.scheme == "https" and parsed_url.netloc and not parsed_url.username:
+                rule["auth"] = {"version": 1, "entries": [{"id": "web", "type": "webview", "label": "网页登录", "url": url, "origins": ["https://" + parsed_url.netloc], "cookieMode": "all"}]}
+        if "auth" not in rule:
+            _issue(diagnostics, "conversion.login_manual", "$.loginUrl", "脚本或非HTTPS登录无法直接转换；请人工核对 auth 登录入口，不推测地址或 requiredFor。", value)
     return rule
 
 
