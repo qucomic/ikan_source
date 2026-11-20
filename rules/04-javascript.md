@@ -29,7 +29,7 @@ JS 规则可返回：
 - 数组（包含上述值）
 - Promise，包括 `async` IIFE 的结果
 
-地址字段只接受 URL 字符串、请求对象或 `null`。发现 `discoverUrl` 的 JS 可以返回字符串、列表或请求对象。漫画 `contentItems` 可以返回图片 URL 或结构化图片对象。
+地址字段只接受 URL 字符串、请求对象或 `null`。发现 `discoverUrl` 的 JS 可以返回字符串、列表或请求对象。漫画 `contentItems` 可以返回图片 URL 或结构化图片对象。视频 `contentItems` 可以返回 URL 或[视频资源对象及其数组](01-fields.md#视频资源与清晰度)。
 
 ## 保留全局变量
 

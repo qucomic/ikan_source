@@ -13,6 +13,7 @@ Create one ordinary JSON rule object for the current Ikan engine. Never encode i
 2. Read only the repository references relevant to the task:
    - Start with [`rules/README.md`](../../../rules/README.md) and [`rules/01-fields.md`](../../../rules/01-fields.md).
    - For requests, selectors, or JavaScript, read [`02-address-and-request.md`](../../../rules/02-address-and-request.md), [`03-selectors-and-values.md`](../../../rules/03-selectors-and-values.md), or [`04-javascript.md`](../../../rules/04-javascript.md).
+   - For video `contentItems`, read [video resources and quality](../../../rules/01-fields.md#视频资源与清晰度).
    - For same-site mirrors or host failover, read [`10-backup-hosts.md`](../../../rules/10-backup-hosts.md).
    - For login, Cookie/Token, registration, or protected operations, read [`09-authentication.md`](../../../rules/09-authentication.md).
    - Read pagination, images, examples, or troubleshooting references only when those features apply. For combined discover filters, read [`05-pagination-and-session.md`](../../../rules/05-pagination-and-session.md) before drafting `discoverUrl`.
@@ -93,6 +94,7 @@ Rules with auth default to the primary host, with no automatic failover. Only se
 | Direct children of current node | Use Ikan relative CSS such as `>a@text` or `@css:>h3>a@text`. A leading `>` scopes the first child combinator to the current list node; without it, `a@text` matches descendants at any depth. |
 | Embedded chapter content | Use `chapterPayload`; otherwise let `contentUrl` use `chapterResult`. |
 | Multi-road chapters | Set `enableMultiRoads: true` only when the directory contains independent road containers. `chapterRoads` selects each container; `chapterRoadName` and `chapterList` run relative to that container, then chapter value fields run relative to each `chapterList` item. |
+| Multiple quality URLs for the same episode | Return ordered video resource objects from `contentItems`, each with `url` and optional `qualityHeight` as a positive integer such as `720` or `1080`. Put the intended default first. Keep per-address `headers`, `format`, `variant`, and `transform` on that resource when needed. |
 | Descending source catalog | Set `chapterSourceOrder: "desc"` when the complete source directory is newest-first, especially across pagination. Keep `chapterList` as the ordinary selector; do not reverse each page with `@[-1:0]`. |
 | Relative URLs | Prefer engine resolution against the current `baseUrl`/`host`; add JavaScript only when the API requires ID-to-URL construction. |
 | Dynamic page | Inspect scripts/network first. Prefer its usable HTTP/JSON API; treat WebView as the fallback and verify post-render DOM timing. |
@@ -106,6 +108,8 @@ Rules with auth default to the primary host, with no automatic failover. Only se
 | XPath | Use only the documented Ikan XPath subset in `rules/03-selectors-and-values.md`; do not infer support for arbitrary W3C XPath axes, functions, or predicates. |
 | Pagination selector results | `searchNextUrl`, `discoverNextUrl`, `chapterNextUrl`, and `contentNextUrl` use the first non-empty parsed URL. Make the selector target the real next-page link rather than both previous and next links. |
 | Regex replacement in JSON | Use `rule##pattern##replacement##true`. JSON-escape regex backslashes, for example `\\.` in the JSON source for a literal dot, and write `@` directly—never `\@`. |
+
+For video rules, use `enableMultiRoads` for independent chapter lists and `contentItems` for alternate resolutions of the current episode. `contentItems` is a selector or JavaScript expression in the rule JSON. Return the array as the result of that expression. Keep `qualityHeight` inside each returned resource object. Verify that all variants play the same episode and that the first address works as the default.
 
 ## Output Contract
 

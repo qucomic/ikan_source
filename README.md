@@ -32,13 +32,13 @@ https://github.com/user-attachments/assets/117ab3ae-7a68-4127-ab8f-c14c652375f4
 
 ## 项目截图
 
-| 首页 | 搜索 | 规则发现 |
+| 首页 | 搜索 | 短剧 |
 |:---:|:---:|:---:|
-| <img src="screenshots/home.png" width="200"> | <img src="screenshots/search.png" width="200"> | <img src="screenshots/discover_rule.png" width="200"> |
+| <img src="screenshots/home.png" width="200"> | <img src="screenshots/search.png" width="200"> | <img src="screenshots/shorts.png" width="200"> |
 
-| 内容发现 | 分类 | 小说阅读 |
+| 历史 | 分类 | 小说阅读 |
 |:---:|:---:|:---:|
-| <img src="screenshots/book_discover.png" width="200"> | <img src="screenshots/classify.png" width="200"> | <img src="screenshots/read.png" width="200"> |
+| <img src="screenshots/history.png" width="200"> | <img src="screenshots/classify.png" width="200"> | <img src="screenshots/read.png" width="200"> |
 
 | 漫画阅读 | 视频播放 | 下载管理 |
 |:---:|:---:|:---:|

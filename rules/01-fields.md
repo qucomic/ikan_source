@@ -127,7 +127,7 @@
 | --- | --- |
 | `contentUrl` | 正文请求地址。仅在 `chapterPayload` 没有有效结果时执行；留空则直接使用 `chapterResult`。返回 `null` 或 `{skip:true}` 可跳过请求。 |
 | `contentNextUrl` | 正文内部下一页地址，用于同一章被分成多个网页的情况。 |
-| `contentItems` | 小说返回文字列表，漫画返回图片 URL/图片对象，视频返回播放地址。 |
+| `contentItems` | 小说返回文字列表，漫画返回图片 URL/图片对象，视频返回播放地址、视频资源对象或资源数组，见[视频资源与清晰度](#视频资源与清晰度)。 |
 
 正文输入按以下顺序决定：
 
@@ -160,6 +160,26 @@
 当 `chapterResult` 为空而 `chapterPayload` 有值时，应用会使用 payload 的稳定字符串作为
 兼容章节结果，因此正文阶段的 `lastResult` 也可读取该字符串。建议 payload 很大时仍额外
 提供一个简短、稳定且唯一的 `chapterResult`，便于阅读记录和缓存索引。
+
+### 视频资源与清晰度
+
+视频规则（`contentType: 2`）的 `contentItems` 可以返回 URL、`URL@headers{...}`、含 `url` 的视频资源对象，或这些值的数组。相对地址由引擎根据当前正文来源解析。已有只返回一个地址的规则可以沿用。
+
+同一线路的同一集有多个播放地址时，让 `contentItems` 的表达式返回资源数组。以下示例是 JavaScript 表达式，完整规则 JSON 中的 `contentItems` 值为字符串。
+
+```json
+{
+  "contentItems": "@js:[{url: 'https://video.example/ep1-720.mp4', qualityHeight: 720}, {url: 'https://video.example/ep1-1080.mp4', qualityHeight: 1080}]"
+}
+```
+
+- `qualityHeight` 是每条视频资源上可选的正整数，单位为像素。客户端把 `720`、`1080` 显示为 `720P`、`1080P`。请使用站点实际提供的分辨率。
+- 数组第一条是默认播放地址。已支持视频资源数组的旧版客户端会读取第一条，可据此安排兼容性较好的默认地址。
+- 每条地址按需携带自己的 `headers`、`format`、`variant` 或 `transform`。若提供 `variant`，同一集的同一媒体版本应使用稳定标识，签名 URL 更新时也继续使用该标识。
+- 多线路用于切换独立剧集目录。同一集的不同分辨率由 `contentItems` 返回，章节、线路和规则顶层字段可沿用已有配置。
+- 单条 HLS Master 地址可直接返回，由播放器读取内部轨道。若多个档位各有独立地址，使用资源数组。下载时可先选地址档位，选中的地址为 HLS Master 时再选内部轨道。
+
+### 图片资源
 
 `searchCover`、`discoverCover`、`chapterCover` 和漫画 `contentItems` 的图片对象格式完全一致，均支持：
 
